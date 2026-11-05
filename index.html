@@ -401,7 +401,7 @@
   const MEALS = ['아침', '점심', '저녁', '간식'];
   const state = {
     records: [], meals: [], foods: [], customFoods: [], restaurants: [], settings: {}, themes: [], courses: [], places: [],
-    date: '', tab: 'record', meal: '', parsed: [], days: 30, results: [], theme: 'all', origin: null, gps: null, searched: false,
+    date: '', tab: 'record', meal: '', parsed: [], days: 30, results: [], showSalty: false, theme: 'all', origin: null, gps: null, searched: false,
   };
   const charts = {};
   const $ = (id) => document.getElementById(id);
@@ -860,16 +860,34 @@
       : (saved ? '<button disabled>저장됨</button>' : '<button data-keep="' + esc(p.id) + '">저장</button>');
     const meta = [p.distance_km != null && p.distance_km !== '' ? p.distance_km + 'km' : '', p.category, p.address].filter(Boolean).map(esc).join(', ');
     return '<div class="place"><div class="name">' + esc(p.name) + '</div><div class="meta">' + meta + '</div>' +
-      (p.tip ? '<div class="tip">' + esc(p.tip) + '</div>' : '') + '<div class="actions">' + tel + map + btn + '</div></div>';
+      (p.tip ? '<div class="tip">' + (p.theme ? '<b>' + esc(p.theme) + '</b>' + roJosa(p.theme) + ' 찾음 · ' : '') + esc(p.tip) + '</div>' : '') +
+      (isSalty(p) ? '<div class="meta" style="color:var(--red)">짠 음식이 많은 업종이에요. 국물은 남기세요.</div>' : '') +
+      '<div class="actions">' + tel + map + btn + '</div></div>';
   }
+  // '로/으로' 고르기: 받침이 없거나 ㄹ 받침이면 '로'
+  function roJosa(word) {
+    const c = String(word).trim().slice(-1).charCodeAt(0) - 0xac00;
+    if (c < 0 || c > 11171) return '로';
+    const jong = c % 28; return jong === 0 || jong === 8 ? '로' : '으로';
+  }
+  // 짠 음식이 주 메뉴인 업종 (업종 이름이나 가게 이름에 들어 있으면)
+  const SALTY_RE = /(중국|중식|짬뽕|짜장|마라|치킨|분식|떡볶이|술집|호프|포장마차|주점|이자카야|패스트푸드|햄버거|피자|국밥|해장국|감자탕|라면|부대찌개|족발|보쌈|곱창|막창|순대|닭갈비|찜닭)/;
+  function isSalty(p) { return SALTY_RE.test(p.category || '') || SALTY_RE.test(p.name || ''); }
   function renderResults() {
     if (!state.searched) { $('results').innerHTML = ''; return; }
     if (!state.results.length) { $('results').innerHTML = '<p class="empty">10km 안에서 찾지 못했습니다. 다른 메뉴나 장소를 골라 보세요.</p>'; return; }
-    $('results').innerHTML = state.results.map((p) => placeCard(p, 'search')).join('');
+    const salty = state.results.filter(isSalty);
+    const shown = state.showSalty ? state.results : state.results.filter((p) => !isSalty(p));
+    const toggle = salty.length
+      ? '<p class="sub" style="margin:4px 0 0">' + (state.showSalty ? '짠 업종 ' + salty.length + '곳도 함께 보는 중' : '짬뽕·치킨·국밥처럼 짠 업종 ' + salty.length + '곳을 숨겼어요') +
+        ' <button id="toggle-salty" style="color:var(--teal);font-size:13px;font-weight:600;text-decoration:underline">' + (state.showSalty ? '숨기기' : '보기') + '</button></p>'
+      : '';
+    $('results').innerHTML = toggle + (shown.length ? shown.map((p) => placeCard(p, 'search')).join('') : '<p class="empty">짠 업종을 빼니 남은 곳이 없습니다. 다른 메뉴를 골라 보세요.</p>');
   }
   function renderSaved() { $('saved').innerHTML = state.restaurants.length ? state.restaurants.map((p) => placeCard(p, 'saved')).join('') : '<p class="empty">저장한 식당이 없습니다.</p>'; }
   $('tab-food').addEventListener('click', async (e) => {
     const keep = e.target.dataset.keep, remove = e.target.dataset.remove;
+    if (e.target.id === 'toggle-salty') { state.showSalty = !state.showSalty; renderResults(); return; }
     try {
       if (keep) { state.restaurants = await call('apiSaveRestaurant', state.results.find((x) => x.id === keep)); renderSaved(); renderResults(); toast('식당을 저장했습니다'); }
       if (remove && confirm('저장한 식당에서 삭제할까요?')) { state.restaurants = await call('apiDeleteRestaurant', remove); renderSaved(); renderResults(); toast('삭제했습니다'); }

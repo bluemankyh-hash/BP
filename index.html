@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>혈압 관리</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="혈압 관리">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f6f8f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12171c" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"
+  onerror="var s=document.createElement('script');s.src='https://unpkg.com/chart.js@4.4.1/dist/chart.umd.js';document.head.appendChild(s);"></script>
+<style>
+  :root {
+    --paper: #f6f8f9; --surface: #ffffff; --ink: #18212f; --mute: #6b7480; --faint: #b9c1c9; --hair: #dde3e8;
+    --teal: #0f5c63; --teal-soft: #e3efef; --panel: #e9eff0; --panel-line: #cfdadc;
+    --amber: #b7791f; --red: #c4492d; --red-soft: #fbebe7; --green: #2d7d5b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #12171c; --surface: #192027; --ink: #e8edf1; --mute: #95a0aa; --faint: #56616b; --hair: #2a333c;
+      --teal: #6fc1c4; --teal-soft: #1d3436; --panel: #1f2a2e; --panel-line: #33434a;
+      --amber: #e2b45a; --red: #f08a72; --red-soft: #3a2420; --green: #6cc49b;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-size: 16px; line-height: 1.5;
+    font-family: Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    font-feature-settings: "tnum"; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  button:disabled { opacity: .5; }
+  :focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+  /* ── 머리줄: 제목 + 작은 날짜 선택 ── */
+  .top { position: sticky; top: 0; z-index: 5; background: var(--paper); display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 12px 16px 10px; max-width: 560px; margin: 0 auto; border-bottom: 1px solid var(--hair); }
+  .top h1 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+  .datepick { display: flex; align-items: center; border: 1px solid var(--hair); border-radius: 999px; background: var(--surface); }
+  .datepick button { width: 36px; height: 34px; font-size: 20px; line-height: 1; color: var(--mute); }
+  .dlabel { position: relative; padding: 0 2px; font-size: 15px; font-weight: 700; white-space: nowrap; min-width: 92px; text-align: center; }
+  .dlabel input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; -webkit-appearance: none; appearance: none; }
+  .dlabel .today { color: var(--teal); }
+
+  main { max-width: 560px; margin: 0 auto; padding: 0 16px; }
+  section.block { padding: 20px 0; border-bottom: 1px solid var(--hair); }
+  section.block:last-child { border-bottom: 0; }
+  h2 { font-size: 15px; font-weight: 700; margin: 0 0 12px; color: var(--ink); }
+  .sub { color: var(--mute); font-size: 13px; margin: 6px 0 0; }
+
+  /* ── 혈압계 판: 이 앱의 얼굴 ── */
+  .monitor { background: var(--panel); border: 1px solid var(--panel-line); border-radius: 18px; padding: 6px 18px; }
+  .mrow { display: grid; grid-template-columns: 64px 1fr 52px; align-items: center; border-bottom: 1px solid var(--panel-line); }
+  .mrow:last-child { border-bottom: 0; }
+  .mlab { font-size: 14px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+  .mlab small { display: block; font-size: 11px; font-weight: 500; color: var(--mute); }
+  .mnum { width: 100%; min-width: 0; border: 0; background: transparent; color: var(--ink); text-align: right;
+    font: 800 42px/1 Pretendard, -apple-system, sans-serif; font-feature-settings: "tnum"; letter-spacing: -0.02em;
+    padding: 8px 6px; -webkit-appearance: none; appearance: none; }
+  .mnum::placeholder { color: var(--faint); font-weight: 600; }
+  .mnum:focus { outline: 0; }
+  .mrow:focus-within .mlab { color: var(--teal); }
+  .munit { font-size: 13px; color: var(--mute); text-align: right; }
+
+  /* ── 일반 입력 ── */
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .fld { display: flex; align-items: center; gap: 8px; min-width: 0; height: 52px; padding: 0 14px; border: 1px solid var(--hair);
+    border-radius: 12px; background: var(--surface); }
+  .fld:focus-within { border-color: var(--teal); }
+  .fld span { font-size: 14px; color: var(--mute); flex: none; }
+  .fld input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; color: var(--ink); font: 700 19px Pretendard, sans-serif;
+    text-align: right; padding: 0; -webkit-appearance: none; appearance: none; }
+  .fld input:focus { outline: 0; }
+  .fld input::placeholder { color: var(--faint); font-weight: 500; }
+  .fld em { font-style: normal; font-size: 13px; color: var(--mute); flex: none; }
+  .fld.wide { grid-column: 1 / -1; }
+  .fld.wide input { text-align: left; font-weight: 500; font-size: 16px; }
+
+  .primary { display: block; width: 100%; margin-top: 14px; height: 54px; border-radius: 14px; background: var(--teal); color: var(--surface);
+    font-size: 17px; font-weight: 700; }
+  .alert { background: var(--red-soft); color: var(--red); border-radius: 12px; padding: 12px 14px; font-size: 14px; margin-top: 12px; }
+
+  /* 오늘 식사 한 줄 */
+  .strip { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 14px 0 0; }
+  .strip .k { font-size: 13px; color: var(--mute); }
+  .strip b { font-size: 17px; }
+  .strip .go { margin-left: auto; color: var(--teal); font-size: 14px; font-weight: 600; }
+  .meter { height: 6px; border-radius: 99px; background: var(--hair); overflow: hidden; margin-top: 4px; width: 110px; }
+  .meter > i { display: block; height: 100%; border-radius: 99px; }
+
+  /* 표 형태 목록 */
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th { text-align: left; font-size: 12px; font-weight: 500; color: var(--mute); padding: 0 0 6px; }
+  td { padding: 11px 0; border-top: 1px solid var(--hair); }
+  td.num, th.num { text-align: right; }
+  td.bp { font-weight: 700; }
+  tr.row { cursor: pointer; }
+  tr.row.on td { color: var(--teal); }
+  .empty { color: var(--mute); font-size: 14px; padding: 8px 0; }
+
+  /* 분절 버튼 (아침·점심… / 30일·90일…) */
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--panel); border-radius: 12px; padding: 3px; margin-bottom: 12px; }
+  .seg button { height: 38px; border-radius: 9px; font-size: 15px; color: var(--mute); }
+  .seg button.on { background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 2px rgba(24, 33, 47, .12); }
+
+  textarea { display: block; width: 100%; min-height: 84px; padding: 12px 14px; border: 1px solid var(--hair); border-radius: 12px; background: var(--surface);
+    color: var(--ink); font: 16px/1.5 Pretendard, sans-serif; resize: vertical; -webkit-appearance: none; appearance: none; }
+  textarea:focus { outline: 0; border-color: var(--teal); }
+  textarea::placeholder { color: var(--faint); }
+
+  /* 음식 미리보기 */
+  .pitem { padding: 12px 0; border-bottom: 1px solid var(--hair); }
+  .pitem .nm { font-weight: 700; font-size: 16px; overflow-wrap: anywhere; }
+  .pitem .basis { font-size: 12px; color: var(--mute); }
+  .pitem.unknown .basis { color: var(--amber); }
+  .pitem .mini { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .pitem .fld { height: 42px; padding: 0 10px; }
+  .pitem .fld input { font-size: 16px; }
+  .pitem .fld span, .pitem .fld em { font-size: 12px; }
+  .pitem .remember { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-top: 8px; }
+  .pitem .remember input { width: 20px; height: 20px; accent-color: var(--teal); }
+  .totalbar { display: flex; justify-content: space-between; font-weight: 700; padding: 12px 0 0; font-size: 15px; }
+
+  .daysum { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; }
+  .big { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; }
+  .big small { font-size: 14px; font-weight: 600; color: var(--mute); }
+  .mealhead { font-size: 13px; color: var(--mute); margin: 16px 0 0; display: flex; justify-content: space-between; }
+  .mi { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--hair); font-size: 15px; }
+  .mi .meta { font-size: 13px; color: var(--mute); }
+  .x { color: var(--mute); font-size: 13px; padding: 6px 4px; }
+
+  /* 추이 요약 */
+  .stats { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; }
+  .stat { padding: 12px 0; border-top: 1px solid var(--hair); min-width: 0; }
+  .stat .k { font-size: 13px; color: var(--mute); }
+  .stat .v { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; }
+  .stat .v small { font-size: 13px; font-weight: 600; color: var(--mute); }
+  .stat .d { font-size: 13px; }
+  .bad { color: var(--red); } .good { color: var(--green); }
+  .chart { position: relative; height: 240px; }
+
+  /* 식당 */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .chip { border: 1px solid var(--hair); background: var(--surface); border-radius: 999px; padding: 8px 14px; font-size: 15px; }
+  .chip.on { border-color: var(--teal); background: var(--teal-soft); color: var(--teal); font-weight: 700; }
+  .place { padding: 14px 0; border-bottom: 1px solid var(--hair); }
+  .place .name { font-size: 17px; font-weight: 700; }
+  .place .meta { color: var(--mute); font-size: 13px; }
+  .place .tip { font-size: 14px; margin: 6px 0 8px; padding-left: 10px; border-left: 3px solid var(--teal); }
+  .place .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .place .actions a, .place .actions button { text-decoration: none; border: 1px solid var(--hair); color: var(--ink); border-radius: 10px; padding: 7px 12px; font-size: 14px; background: var(--surface); }
+  .ghost { border: 1px solid var(--hair); background: var(--surface); border-radius: 12px; padding: 0 16px; height: 52px; font-weight: 600; }
+  .row2 { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+  .stack > * + * { margin-top: 10px; }
+
+  /* 내 코스 (러닝 한 번에 입력) */
+  .courses { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+  .courses .lab { font-size: 13px; color: var(--mute); margin-right: 2px; }
+  .cchip { border: 1px solid var(--hair); background: var(--surface); border-radius: 999px; padding: 7px 12px; font-size: 14px; }
+  .cchip b { color: var(--teal); }
+  .cchip.add { color: var(--teal); border-style: dashed; }
+
+  /* 코스 지도 화면 */
+  .panel { position: fixed; inset: 0; z-index: 30; background: var(--paper); display: flex; flex-direction: column; }
+  .panel[hidden] { display: none; }
+  .panel-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--hair); }
+  .panel-head b { font-size: 17px; }
+  .panel-head button { color: var(--teal); font-weight: 600; padding: 6px 4px; }
+  #map { flex: 1 1 auto; min-height: 260px; background: var(--panel); }
+  .panel-body { padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); max-height: 52vh; overflow: auto; }
+  .kmline { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .kmline .big { font-size: 34px; }
+  .tools { display: flex; gap: 6px; }
+  .tools button { border: 1px solid var(--hair); background: var(--surface); border-radius: 10px; padding: 7px 10px; font-size: 13px; }
+  .hint { font-size: 13px; color: var(--mute); margin: 4px 0 10px; }
+  .clist .mi b { color: var(--teal); }
+  .leaflet-container { font: inherit; }
+
+  /* GPS 러닝 */
+  .cchip.gps { background: var(--teal); color: var(--surface); border-color: var(--teal); font-weight: 700; }
+  #rmap { flex: 1 1 auto; min-height: 220px; background: var(--panel); }
+  .rstats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+  .rstats .k { font-size: 12px; color: var(--mute); }
+  .rstats .v { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; font-feature-settings: "tnum"; }
+  .rstats .v small { font-size: 14px; color: var(--mute); font-weight: 600; }
+  .rstats .main .v { font-size: 52px; }
+  .rbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .rbtns button { height: 56px; border-radius: 14px; font-size: 18px; font-weight: 700; }
+  .rbtns .go { background: var(--teal); color: var(--surface); }
+  .rbtns .stop { background: var(--red); color: #fff; }
+  .rbtns .soft { border: 1px solid var(--hair); background: var(--surface); }
+  .rbtns .full { grid-column: 1 / -1; }
+  .gpsline { font-size: 13px; color: var(--mute); margin: 8px 0 0; }
+  .gpsline b { color: var(--ink); }
+
+  /* 알림 설정 */
+  .bell { width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--hair); background: var(--surface); display: grid; place-items: center; margin-left: auto; margin-right: 8px; }
+  .bell svg { width: 20px; height: 20px; fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--hair); font-size: 16px; }
+  .switch input { width: 46px; height: 28px; appearance: none; -webkit-appearance: none; background: var(--hair); border-radius: 99px; position: relative; flex: none; cursor: pointer; transition: background .15s; }
+  .switch input::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .switch input:checked { background: var(--teal); }
+  .switch input:checked::after { left: 21px; }
+  .switch input:disabled { opacity: .45; }
+  .switch small { display: block; color: var(--mute); font-size: 13px; }
+  .linkbtn { display: block; text-align: center; text-decoration: none; height: 52px; line-height: 52px; border-radius: 14px; background: #fee500; color: #191919; font-weight: 700; font-size: 16px; margin-top: 8px; }
+  .status { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); }
+  .dot.on { background: var(--green); }
+  .steps { margin: 8px 0 0; padding-left: 20px; font-size: 14px; color: var(--mute); }
+  .steps li { margin: 4px 0; }
+  @media (prefers-reduced-motion: reduce) { .switch input, .switch input::after { transition: none; } }
+
+  /* 아래 메뉴 */
+  nav { position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; background: var(--surface); border-top: 1px solid var(--hair);
+    padding-bottom: env(safe-area-inset-bottom); }
+  nav .in { display: flex; max-width: 560px; margin: 0 auto; }
+  nav button { flex: 1; padding: 8px 0 10px; font-size: 12px; color: var(--mute); display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  nav svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  nav button.on { color: var(--teal); font-weight: 700; }
+  .tab { display: none; } .tab.on { display: block; }
+  .toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: var(--paper);
+    padding: 10px 18px; border-radius: 999px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 90%; text-align: center; z-index: 20; }
+  .toast.show { opacity: 1; }
+  .loading { text-align: center; color: var(--mute); padding: 48px 0; }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>혈압 관리</h1>
+  <button class="bell" id="open-settings" aria-label="카톡 알림 설정"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4l2-2Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></button>
+  <div class="datepick" id="datepick">
+    <button id="d-prev" aria-label="전날">‹</button>
+    <label class="dlabel"><span id="d-text"></span><input id="f-date" type="date" aria-label="날짜 고르기"></label>
+    <button id="d-next" aria-label="다음날">›</button>
+  </div>
+</header>
+
+<main>
+  <div id="loading" class="loading">불러오는 중…</div>
+
+  <!-- 기록 -->
+  <div id="tab-record" class="tab">
+    <section class="block">
+      <div class="monitor">
+        <label class="mrow"><span class="mlab">수축기<small>최고</small></span><input id="f-sys" class="mnum" type="number" inputmode="numeric" placeholder="---"><span class="munit">mmHg</span></label>
+        <label class="mrow"><span class="mlab">이완기<small>최저</small></span><input id="f-dia" class="mnum" type="number" inputmode="numeric" placeholder="---"><span class="munit">mmHg</span></label>
+        <label class="mrow"><span class="mlab">맥박</span><input id="f-pulse" class="mnum" type="number" inputmode="numeric" placeholder="--"><span class="munit">회/분</span></label>
+      </div>
+      <div class="fields">
+        <label class="fld"><span>체중</span><input id="f-weight" type="number" inputmode="decimal" step="0.1" placeholder="0.0"><em>kg</em></label>
+        <label class="fld"><span>러닝</span><input id="f-run" type="number" inputmode="decimal" step="0.1" placeholder="0"><em>km</em></label>
+        <label class="fld wide"><span>메모</span><input id="f-memo" type="text" placeholder="잠 설침, 약 먹음 등"></label>
+      </div>
+      <div class="courses" id="course-chips"></div>
+      <button class="primary" id="btn-save">저장</button>
+      <div id="bp-alert"></div>
+      <button class="strip" id="today-strip"></button>
+    </section>
+
+    <section class="block">
+      <h2>최근 기록</h2>
+      <div id="recent"></div>
+    </section>
+  </div>
+
+  <!-- 식사 -->
+  <div id="tab-meal" class="tab">
+    <section class="block">
+      <div class="seg" id="meal-seg"></div>
+      <textarea id="f-foods" placeholder="먹은 음식을 쉼표로 구분해 적으세요&#10;예: 김치찌개, 공기밥 반공기, 계란후라이 2개"></textarea>
+      <div id="preview"></div>
+      <button class="primary" id="btn-meal">식사 추가</button>
+    </section>
+    <section class="block">
+      <h2 id="day-title">오늘 먹은 것</h2>
+      <div class="daysum" id="daysum"></div>
+      <div id="daymeals"></div>
+      <p class="sub">나트륨 하루 목표 2,000mg 이하 (세계보건기구 권고). 칼로리·나트륨은 음식별 평균 추정치입니다.</p>
+    </section>
+  </div>
+
+  <!-- 추이 -->
+  <div id="tab-trend" class="tab">
+    <section class="block">
+      <h2>최근 7일, 그 전 7일과 비교</h2>
+      <div class="stats" id="stats"></div>
+    </section>
+    <section class="block">
+      <div class="seg" id="period">
+        <button data-days="30">30일</button><button data-days="90">90일</button><button data-days="365">1년</button>
+      </div>
+      <h2>혈압과 체중</h2>
+      <div class="chart" style="height:260px"><canvas id="chart-bp"></canvas></div>
+    </section>
+    <section class="block">
+      <h2>먹은 칼로리와 나트륨</h2>
+      <div class="chart"><canvas id="chart-food"></canvas></div>
+      <p class="sub">막대는 칼로리, 선은 나트륨, 점선은 나트륨 목표 2,000mg입니다.</p>
+    </section>
+    <section class="block">
+      <h2>러닝 거리</h2>
+      <div class="chart" style="height:170px"><canvas id="chart-run"></canvas></div>
+      <p class="sub">이 앱은 의료기기가 아니며 진단을 하지 않습니다. 약 조절은 의사와 상의하세요.</p>
+    </section>
+  </div>
+
+  <!-- 식당 -->
+  <div id="tab-food" class="tab">
+    <section class="block">
+      <h2>주변 10km 저염 친화 식당</h2>
+      <div id="kakao-missing" class="alert" style="display:none;margin-top:0">카카오 키가 아직 없어 자동 검색이 꺼져 있습니다. 아래에서 식당을 직접 저장할 수 있습니다.</div>
+      <div id="search-area">
+        <div class="chips" id="origins" style="margin-top:0"></div>
+        <div id="place-form" hidden>
+          <div class="stack">
+            <label class="fld"><span>이름</span><input id="p-name" type="text" placeholder="집, 회사" style="text-align:left;font-weight:500;font-size:16px"></label>
+            <label class="fld"><span>주소</span><input id="p-addr" type="text" placeholder="도로명 주소 또는 밀양시청" style="text-align:left;font-weight:500;font-size:16px"></label>
+          </div>
+          <div class="row2" style="grid-template-columns:1fr 1fr;margin-top:10px">
+            <button class="ghost" id="p-cancel">취소</button><button class="ghost" id="p-save" style="color:var(--teal)">장소 저장</button>
+          </div>
+        </div>
+        <p class="sub" id="origin-label" style="margin:0 0 4px"></p>
+        <div class="chips" id="themes"></div>
+        <div id="results"></div>
+      </div>
+    </section>
+    <section class="block">
+      <h2>저장한 식당</h2>
+      <div id="saved"></div>
+    </section>
+    <section class="block">
+      <h2>식당 직접 추가</h2>
+      <div class="stack">
+        <label class="fld"><span>이름</span><input id="m-name" type="text" style="text-align:left;font-weight:500;font-size:16px"></label>
+        <label class="fld"><span>주소</span><input id="m-addr" type="text" style="text-align:left;font-weight:500;font-size:16px"></label>
+        <label class="fld"><span>전화</span><input id="m-phone" type="tel" style="text-align:left;font-weight:500;font-size:16px"></label>
+        <label class="fld"><span>주문 팁</span><input id="m-tip" type="text" placeholder="된장 덜 짜게 요청" style="text-align:left;font-weight:500;font-size:16px"></label>
+      </div>
+      <button class="primary" id="btn-add">식당 저장</button>
+    </section>
+  </div>
+</main>
+
+<div class="panel" id="run-panel" hidden>
+  <div class="panel-head"><b id="r-title">GPS 러닝</b><button id="r-close">닫기</button></div>
+  <div id="rmap"></div>
+  <div class="panel-body" style="max-height:none">
+    <div class="rstats">
+      <div class="main" style="grid-column:1/-1"><div class="k">거리</div><div class="v"><span id="r-km">0.00</span><small> km</small></div></div>
+      <div><div class="k">시간</div><div class="v" id="r-time">0:00</div></div>
+      <div><div class="k">평균 페이스</div><div class="v"><span id="r-pace">–</span><small> /km</small></div></div>
+      <div><div class="k">칼로리 (추정)</div><div class="v"><span id="r-kcal">0</span><small> kcal</small></div></div>
+      <div><div class="k">GPS</div><div class="v" style="font-size:17px;padding-top:8px" id="r-gps">대기</div></div>
+    </div>
+    <div class="rbtns" id="r-btns"></div>
+    <p class="gpsline" id="r-note">화면이 꺼지면 위치 기록이 멈춥니다. 화면을 켜 둔 채 뛰어 주세요. 다시 켜면 이어서 기록하고, 꺼져 있던 구간은 직선 거리로 계산합니다.</p>
+    <div id="r-list"></div>
+  </div>
+</div>
+
+<div class="panel" id="settings-panel" hidden>
+  <div class="panel-head"><b>카톡 알림</b><button id="s-close">닫기</button></div>
+  <div class="panel-body" style="max-height:none;flex:1">
+    <div id="s-body"></div>
+  </div>
+</div>
+
+<div class="panel" id="course-panel" hidden>
+  <div class="panel-head"><b>러닝 코스 만들기</b><button id="c-close">닫기</button></div>
+  <div id="map"></div>
+  <div class="panel-body">
+    <div class="kmline"><div class="big"><span id="c-km">0.00</span><small> km</small></div>
+      <div class="tools"><button id="c-undo">되돌리기</button><button id="c-loop">출발점으로</button><button id="c-reset">지우기</button></div></div>
+    <p class="hint" id="c-hint"></p>
+    <label class="switch" style="padding:8px 0 12px;border:0"><span>실제 길 따라 잇기<small>카카오 도보 길찾기로 점 사이를 길 따라 연결</small></span><input type="checkbox" id="c-walk"></label>
+    <label class="fld"><span>코스 이름</span><input id="c-name" type="text" placeholder="삼문동 한바퀴" style="text-align:left;font-weight:500;font-size:16px"></label>
+    <button class="primary" id="c-save">코스 저장</button>
+    <div class="clist" id="c-list"></div>
+  </div>
+</div>
+
+<nav><div class="in">
+  <button data-tab="record" class="on"><svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>기록</button>
+  <button data-tab="meal"><svg viewBox="0 0 24 24"><path d="M3 11h18a9 9 0 0 1-18 0Z"/><path d="M8 7c0-1.5 1-2 1-3.5M12 7c0-1.5 1-2 1-3.5M16 7c0-1.5 1-2 1-3.5"/></svg>식사</button>
+  <button data-tab="trend"><svg viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="m7 14 4-4 3 3 5-6"/></svg>추이</button>
+  <button data-tab="food"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>식당</button>
+</div></nav>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+  // ───── 상태 ─────
+  const SODIUM_GOAL = 2000;
+  const MEALS = ['아침', '점심', '저녁', '간식'];
+  const state = {
+    records: [], meals: [], foods: [], customFoods: [], restaurants: [], settings: {}, themes: [], courses: [], places: [],
+    date: '', tab: 'record', meal: '', parsed: [], days: 30, results: [], theme: 'all', origin: null, gps: null, searched: false,
+  };
+  const charts = {};
+  const $ = (id) => document.getElementById(id);
+
+  // ───── 서버 호출 (Apps Script 데이터 API) ─────
+  // 주소 # 뒤의 k(비밀 열쇠)와 api(데이터 주소)를 읽고, 없으면 이 기기에 저장해 둔 값을 씁니다.
+  const CFG = (function () {
+    const h = new URLSearchParams(location.hash.slice(1));
+    let k = h.get('k'), api = h.get('api');
+    try {
+      if (k && api) { localStorage.setItem('bp_k', k); localStorage.setItem('bp_api', api); }
+      k = k || localStorage.getItem('bp_k'); api = api || localStorage.getItem('bp_api');
+    } catch (_) {}
+    return { k, api, tab: h.get('tab') };
+  })();
+  async function call(fn, ...args) {
+    if (!CFG.k || !CFG.api) throw new Error('열쇠가 없습니다');
+    let res;
+    try {
+      res = await fetch(CFG.api, { method: 'POST', redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ k: CFG.k, fn, args }) });
+    } catch (e) { throw new Error('서버에 연결하지 못했습니다. 인터넷 연결을 확인해 주세요.'); }
+    let j;
+    try { j = await res.json(); } catch (e) { throw new Error('서버 응답을 읽지 못했습니다. Apps Script 배포가 "모든 사용자"인지 확인해 주세요.'); }
+    if (!j.ok) throw new Error(j.error || '알 수 없는 오류');
+    return j.data;
+  }
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+  function errMsg(e) { return (e && e.message ? e.message : String(e)).replace(/^Error:\s*/, ''); }
+  function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function todayStr(offset = 0) { const d = new Date(); d.setDate(d.getDate() + offset); return ymd(d); }
+  function shiftDate(s, n) { const [y, m, d] = s.split('-').map(Number); return ymd(new Date(y, m - 1, d + n)); }
+  function prettyDate(s) {
+    const [y, m, d] = s.split('-').map(Number), w = '일월화수목금토'[new Date(y, m - 1, d).getDay()];
+    return m + '월 ' + d + '일 (' + w + ')';
+  }
+  function shortDate(s) {
+    const [y, m, d] = s.split('-').map(Number);
+    return m + '.' + d + ' (' + '일월화수목금토'[new Date(y, m - 1, d).getDay()] + ')';
+  }
+  const val = (id) => $(id).value.trim();
+  const fmtN = (n) => (n == null ? '–' : Math.round(n).toLocaleString('ko-KR'));
+  const sodiumColor = (n) => (n <= SODIUM_GOAL * 0.75 ? 'var(--green)' : n <= SODIUM_GOAL ? 'var(--amber)' : 'var(--red)');
+
+  // ───── 탭 · 날짜 ─────
+  document.querySelectorAll('nav button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  function showTab(name) {
+    state.tab = name;
+    document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
+    document.querySelectorAll('.tab').forEach((s) => s.classList.toggle('on', s.id === 'tab-' + name));
+    $('datepick').style.visibility = name === 'record' || name === 'meal' ? 'visible' : 'hidden';
+    if (name === 'trend') { renderStats(); renderCharts(); }
+    if (name === 'food' && !state.searched) autoSearch();
+    window.scrollTo(0, 0);
+  }
+  function setDate(d) {
+    state.date = d; $('f-date').value = d;
+    $('d-text').innerHTML = (d === todayStr() ? '<span class="today">오늘</span> ' : '') + esc(shortDate(d));
+    fillForm(); renderRecent(); renderTodayStrip(); renderMealDay();
+  }
+  $('f-date').addEventListener('change', () => { if ($('f-date').value) setDate($('f-date').value); });
+  $('d-prev').addEventListener('click', () => setDate(shiftDate(state.date, -1)));
+  $('d-next').addEventListener('click', () => setDate(shiftDate(state.date, 1)));
+
+  // ───── 기록 탭 ─────
+  function fillForm() {
+    const r = state.records.find((x) => x.date === state.date) || {};
+    $('f-sys').value = r.systolic ?? ''; $('f-dia').value = r.diastolic ?? ''; $('f-pulse').value = r.pulse ?? '';
+    $('f-weight').value = r.weight_kg ?? ''; $('f-run').value = r.run_km ?? ''; $('f-memo').value = r.memo || '';
+    $('bp-alert').innerHTML = '';
+  }
+  $('btn-save').addEventListener('click', async () => {
+    const btn = $('btn-save'); btn.disabled = true; btn.textContent = '저장 중…';
+    const rec = { date: state.date, systolic: val('f-sys'), diastolic: val('f-dia'), pulse: val('f-pulse'),
+      weight_kg: val('f-weight'), run_km: val('f-run'), memo: val('f-memo') };
+    try {
+      state.records = await call('apiSaveRecord', rec);
+      renderRecent(); toast('저장했습니다');
+      bpAlert(Number(rec.systolic), Number(rec.diastolic));
+    } catch (e) { toast(errMsg(e)); }
+    btn.disabled = false; btn.textContent = '저장';
+  });
+  function bpAlert(s, d) {
+    $('bp-alert').innerHTML = (s >= 180 || d >= 110)
+      ? '<div class="alert">혈압이 매우 높습니다 (180/110 이상). 5분 쉬고 다시 재 보시고, 계속 높거나 두통·흉통·숨참이 있으면 바로 진료를 받으세요. 이 상태에서는 러닝을 하지 마세요.</div>' : '';
+  }
+
+  function dailyIntake() {
+    const map = {};
+    state.meals.forEach((m) => {
+      const o = map[m.date] || (map[m.date] = { kcal: 0, sodium: 0, n: 0 });
+      o.kcal += m.kcal || 0; o.sodium += m.sodium_mg || 0; o.n++;
+    });
+    return map;
+  }
+  function renderTodayStrip() {
+    const it = dailyIntake()[state.date];
+    $('today-strip').innerHTML = it
+      ? '<span><span class="k">먹은 것</span><br><b>' + fmtN(it.kcal) + '</b> kcal</span>' +
+        '<span><span class="k">나트륨</span><br><b style="color:' + sodiumColor(it.sodium) + '">' + fmtN(it.sodium) + '</b> mg' +
+        '<div class="meter"><i style="width:' + Math.min(100, it.sodium / SODIUM_GOAL * 100) + '%;background:' + sodiumColor(it.sodium) + '"></i></div></span>' +
+        '<span class="go">식사 보기</span>'
+      : '<span class="k">이 날 식사 기록이 없습니다.</span><span class="go">식사 적기</span>';
+  }
+  $('today-strip').addEventListener('click', () => showTab('meal'));
+
+  function renderRecent() {
+    const list = state.records.slice(-(state.showAll ? 60 : 7)).reverse();
+    if (!list.length) { $('recent').innerHTML = '<p class="empty">아직 기록이 없습니다. 위에 오늘 혈압을 적고 저장해 보세요.</p>'; return; }
+    $('recent').innerHTML = '<table><thead><tr><th>날짜</th><th>혈압</th><th class="num">체중</th><th class="num">러닝</th></tr></thead><tbody>' +
+      list.map((r) => '<tr class="row' + (r.date === state.date ? ' on' : '') + '" data-date="' + esc(r.date) + '">' +
+        '<td>' + esc(r.date.slice(5).replace('-', '.')) + '</td>' +
+        '<td class="bp">' + (r.systolic !== null ? r.systolic + '/' + r.diastolic : '–') + '</td>' +
+        '<td class="num">' + (r.weight_kg !== null ? r.weight_kg.toFixed(1) : '–') + '</td>' +
+        '<td class="num">' + (r.run_km ? r.run_km : '–') + '</td></tr>').join('') +
+      '</tbody></table>' + (state.records.length > 7 ? '<button id="more" class="sub" style="color:var(--teal);font-weight:600">' + (state.showAll ? '접기' : '더 보기') + '</button>' : '') +
+      '<p class="sub">줄을 누르면 그 날짜로 이동해 고칠 수 있습니다. ' +
+      (state.records.some((r) => r.date === state.date) ? '<button id="del-day" style="color:var(--red);font-size:13px;text-decoration:underline">' + esc(prettyDate(state.date)) + ' 기록 삭제</button>' : '') + '</p>';
+  }
+  $('recent').addEventListener('click', async (e) => {
+    const tr = e.target.closest('tr.row');
+    if (tr) { setDate(tr.dataset.date); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (e.target.id === 'more') { state.showAll = !state.showAll; renderRecent(); return; }
+    if (e.target.id === 'del-day' && confirm(prettyDate(state.date) + ' 기록을 삭제할까요?')) {
+      try { state.records = await call('apiDeleteRecord', state.date); fillForm(); renderRecent(); toast('삭제했습니다'); }
+      catch (err) { toast(errMsg(err)); }
+    }
+  });
+
+  // ───── 음식 해석 (칼로리·나트륨 추정) ─────
+  const UNITS = ['공기', '그릇', '인분', '개', '잔', '조각', '장', '컵', '캔', '병', '접시', '줄', '봉지', '봉', '팩', '토막', '마리', '알', '송이', '줌', '모', '판', 'g', '그램'];
+  const UNIT_RE = UNITS.slice().sort((a, b) => b.length - a.length).join('|');
+  const KNUM = { 한: 1, 두: 2, 세: 3, 네: 4, 다섯: 5, 여섯: 6 };
+  const norm = (s) => String(s || '').replace(/\s+/g, '').toLowerCase();
+  function splitFoods(text) { return text.split(/[,，\n、+]|그리고/).map((s) => s.trim()).filter(Boolean); }
+  function parseOne(raw) {
+    let t = ' ' + raw + ' ', qty = 1, unitWord = '', m;
+    if (/곱빼기/.test(t)) { qty = 1.5; t = t.replace('곱빼기', ' '); }
+    if ((m = t.match(new RegExp('(\\d+(?:\\.\\d+)?)\\s*/\\s*(\\d+)\\s*(' + UNIT_RE + ')?')))) { qty *= Number(m[1]) / Number(m[2]); unitWord = m[3] || ''; t = t.replace(m[0], ' '); }
+    else if ((m = t.match(new RegExp('(\\d+(?:\\.\\d+)?)\\s*(' + UNIT_RE + ')?')))) { qty *= Number(m[1]); unitWord = m[2] || ''; t = t.replace(m[0], ' '); }
+    else if ((m = t.match(new RegExp('(한|두|세|네|다섯|여섯|반)\\s*(' + UNIT_RE + ')')))) { qty *= m[1] === '반' ? 0.5 : KNUM[m[1]]; unitWord = m[2]; t = t.replace(m[0], ' '); }
+    else if ((m = t.match(/\s반\s/))) { qty *= 0.5; t = t.replace(m[0], ' '); }
+    if (unitWord === '그램') unitWord = 'g';
+    let name = t.replace(/\s+/g, ' ').trim();
+    if (!name && unitWord === '공기') name = '공기밥';
+    return { raw, name: name || raw, qty, unitWord };
+  }
+  function dictionary() {
+    const custom = state.customFoods.map((f) => ({ names: [f.name], unit: f.unit, kcal: f.kcal, sodium_mg: f.sodium_mg, source: 'custom' }));
+    return custom.concat(state.foods.map((f) => Object.assign({ source: 'builtin' }, f)));
+  }
+  function lookup(name) {
+    const n = norm(name); if (!n) return null;
+    const dict = dictionary();
+    for (const e of dict) if (e.names.some((k) => norm(k) === n)) return e;
+    let best = null, bestLen = 0;
+    for (const e of dict) for (const k of e.names) { const nk = norm(k); if (nk.length >= 2 && n.includes(nk) && nk.length > bestLen) { best = e; bestLen = nk.length; } }
+    if (best) return best;
+    if (n.length >= 2) for (const e of dict) if (e.names.some((k) => norm(k).startsWith(n))) return e;
+    return null;
+  }
+  function estimate(p) {
+    const e = lookup(p.name);
+    if (!e) return { food: p.name, matched: '', qty: p.qty, unit: p.unitWord || '', kcalPer: null, sodiumPer: null, kcal: '', sodium_mg: '', source: 'manual', remember: false };
+    let factor = p.qty;
+    if (p.unitWord === 'g' && e.g) factor = p.qty / e.g;
+    else if (p.unitWord && e.alt && e.alt[p.unitWord]) factor = p.qty * e.alt[p.unitWord];
+    const unit = p.unitWord === 'g' && e.g ? 'g' : (p.unitWord && e.alt && e.alt[p.unitWord] ? p.unitWord : e.unit);
+    const shownQty = unit === e.unit ? factor : p.qty;
+    return { food: p.name, matched: e.names[0], qty: Math.round(shownQty * 100) / 100, unit, kcalPer: e.kcal, sodiumPer: e.sodium_mg, basisUnit: e.unit,
+      factorPerQty: shownQty ? factor / shownQty : 1, kcal: Math.round(e.kcal * factor), sodium_mg: e.sodium_mg == null ? '' : Math.round(e.sodium_mg * factor),
+      source: e.source, remember: false };
+  }
+  function parseFoods() { state.parsed = splitFoods($('f-foods').value).map(parseOne).map(estimate); renderPreview(); }
+  let parseTimer;
+  $('f-foods').addEventListener('input', () => { clearTimeout(parseTimer); parseTimer = setTimeout(parseFoods, 250); });
+
+  function totals(items) {
+    return [items.reduce((a, x) => a + (Number(x.kcal) || 0), 0), items.reduce((a, x) => a + (Number(x.sodium_mg) || 0), 0)];
+  }
+  function renderPreview() {
+    const items = state.parsed;
+    if (!items.length) { $('preview').innerHTML = ''; return; }
+    const [tk, tn] = totals(items);
+    $('preview').innerHTML = items.map((it, i) => {
+      const unknown = it.kcalPer == null && it.kcal === '';
+      const basis = it.matched
+        ? (it.source === 'custom' ? '내 사전' : '평균') + ' · ' + esc(it.matched) + ' 1' + esc(it.basisUnit) + ' ' + fmtN(it.kcalPer) + 'kcal, 나트륨 ' + fmtN(it.sodiumPer) + 'mg'
+        : '사전에 없는 음식입니다. 칼로리를 직접 넣어 주세요.';
+      return '<div class="pitem' + (unknown ? ' unknown' : '') + '" data-i="' + i + '"><div class="nm">' + esc(it.food) + '</div><div class="basis">' + basis + '</div>' +
+        '<div class="mini">' +
+          '<label class="fld"><input data-f="qty" type="number" inputmode="decimal" step="0.5" value="' + it.qty + '"><em>' + esc(it.unit || '개') + '</em></label>' +
+          '<label class="fld"><input data-f="kcal" type="number" inputmode="numeric" value="' + it.kcal + '" placeholder="?"><em>kcal</em></label>' +
+          '<label class="fld"><input data-f="sodium_mg" type="number" inputmode="numeric" value="' + it.sodium_mg + '" placeholder="?"><em>mg</em></label>' +
+        '</div>' +
+        (it.source !== 'builtin' || it.edited ? '<label class="remember"><input type="checkbox" data-f="remember"' + (it.remember ? ' checked' : '') + '> 내 음식사전에 저장 (다음부터 자동 계산)</label>' : '') +
+        '</div>';
+    }).join('') + '<div class="totalbar"><span>합계</span><span id="ptotal">' + fmtN(tk) + ' kcal · 나트륨 ' + fmtN(tn) + ' mg</span></div>';
+  }
+  $('preview').addEventListener('input', (e) => {
+    const box = e.target.closest('.pitem'); if (!box) return;
+    const it = state.parsed[Number(box.dataset.i)], f = e.target.dataset.f;
+    if (f === 'remember') { it.remember = e.target.checked; return; }
+    it[f] = e.target.value;
+    if (f === 'qty' && it.kcalPer != null) {
+      const factor = (Number(e.target.value) || 0) * (it.factorPerQty || 1);
+      it.kcal = Math.round(it.kcalPer * factor); it.sodium_mg = it.sodiumPer == null ? '' : Math.round(it.sodiumPer * factor);
+      box.querySelector('[data-f=kcal]').value = it.kcal; box.querySelector('[data-f=sodium_mg]').value = it.sodium_mg;
+    }
+    if ((f === 'kcal' || f === 'sodium_mg') && !it.edited) {
+      it.edited = true;
+      if (it.source === 'builtin') {
+        it.source = 'manual';
+        const pos = e.target.value.length; renderPreview();
+        const again = $('preview').querySelector('.pitem[data-i="' + box.dataset.i + '"] [data-f="' + f + '"]');
+        if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch (_) {} }
+        return;
+      }
+    }
+    const [tk, tn] = totals(state.parsed);
+    if ($('ptotal')) $('ptotal').textContent = fmtN(tk) + ' kcal · 나트륨 ' + fmtN(tn) + ' mg';
+  });
+
+  function defaultMeal() { const h = new Date().getHours(); return h < 10 ? '아침' : h < 15 ? '점심' : h < 21 ? '저녁' : '간식'; }
+  function renderMealSeg() { $('meal-seg').innerHTML = MEALS.map((m) => '<button data-meal="' + m + '"' + (state.meal === m ? ' class="on"' : '') + '>' + m + '</button>').join(''); }
+  $('meal-seg').addEventListener('click', (e) => { if (e.target.dataset.meal) { state.meal = e.target.dataset.meal; renderMealSeg(); } });
+
+  $('btn-meal').addEventListener('click', async () => {
+    if (!state.parsed.length) { toast('먹은 음식을 적어 주세요'); return; }
+    const missing = state.parsed.filter((it) => it.kcal === '' || it.kcal === null);
+    if (missing.length && !confirm(missing.map((m) => m.food).join(', ') + '의 칼로리가 비어 있습니다. 그대로 저장할까요? (합계에서 빠집니다)')) return;
+    const btn = $('btn-meal'); btn.disabled = true; btn.textContent = '저장 중…';
+    try {
+      const items = state.parsed.map((it) => ({ food: it.food, matched: it.matched, qty: it.qty, unit: it.unit, kcal: it.kcal, sodium_mg: it.sodium_mg, source: it.source, remember: !!it.remember }));
+      const res = await call('apiAddMeals', state.date, state.meal, items);
+      state.meals = res.meals; state.customFoods = res.customFoods;
+      $('f-foods').value = ''; state.parsed = []; renderPreview(); renderMealDay(); renderTodayStrip();
+      toast(state.meal + ' 식사를 추가했습니다');
+    } catch (e) { toast(errMsg(e)); }
+    btn.disabled = false; btn.textContent = '식사 추가';
+  });
+
+  function renderMealDay() {
+    const list = state.meals.filter((m) => m.date === state.date);
+    $('day-title').textContent = (state.date === todayStr() ? '오늘' : prettyDate(state.date)) + ' 먹은 것';
+    const k = list.reduce((a, m) => a + (m.kcal || 0), 0), n = list.reduce((a, m) => a + (m.sodium_mg || 0), 0);
+    $('daysum').innerHTML =
+      '<div><div class="sub" style="margin:0">칼로리</div><div class="big">' + fmtN(k) + '<small> kcal</small></div></div>' +
+      '<div><div class="sub" style="margin:0">나트륨</div><div class="big" style="color:' + sodiumColor(n) + '">' + fmtN(n) + '<small> mg</small></div>' +
+      '<div class="meter" style="width:100%"><i style="width:' + Math.min(100, n / SODIUM_GOAL * 100) + '%;background:' + sodiumColor(n) + '"></i></div></div>';
+    if (!list.length) { $('daymeals').innerHTML = '<p class="empty">아직 적은 식사가 없습니다.</p>'; return; }
+    $('daymeals').innerHTML = MEALS.map((meal) => {
+      const items = list.filter((m) => m.meal === meal); if (!items.length) return '';
+      return '<div class="mealhead"><span>' + meal + '</span><span>' + fmtN(items.reduce((a, m) => a + (m.kcal || 0), 0)) + ' kcal</span></div>' +
+        items.map((m) => '<div class="mi"><span>' + esc(m.food) + ' <span class="meta">' + (m.qty ?? 1) + esc(m.unit || '') + '</span><br><span class="meta">' +
+          (m.kcal == null ? '칼로리 미입력' : fmtN(m.kcal) + 'kcal') + (m.sodium_mg == null ? '' : ' · 나트륨 ' + fmtN(m.sodium_mg) + 'mg') + '</span></span>' +
+          '<button class="x" data-delmeal="' + esc(m.id) + '">삭제</button></div>').join('');
+    }).join('');
+  }
+  $('daymeals').addEventListener('click', async (e) => {
+    const id = e.target.dataset.delmeal; if (!id || !confirm('이 음식을 삭제할까요?')) return;
+    try { state.meals = await call('apiDeleteMeal', id); renderMealDay(); renderTodayStrip(); toast('삭제했습니다'); }
+    catch (err) { toast(errMsg(err)); }
+  });
+
+  // ───── 추이 탭 ─────
+  function avg(arr) { const v = arr.filter((x) => x !== null && x !== undefined); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; }
+  function rangeDates(from, to) { const out = []; for (let d = from; d <= to; d = shiftDate(d, 1)) out.push(d); return out; }
+  function renderStats() {
+    const curD = rangeDates(todayStr(-6), todayStr(0)), prevD = rangeDates(todayStr(-13), todayStr(-7));
+    const rec = (dates, key) => dates.map((d) => (state.records.find((r) => r.date === d) || {})[key] ?? null);
+    const intake = dailyIntake();
+    const food = (dates, key) => dates.map((d) => (intake[d] ? intake[d][key] : null));
+    const sum = (arr) => arr.reduce((a, b) => a + (b || 0), 0);
+    const diff = (a, b, d = 0, unit = '', goodWhenUp = false) => {
+      if (a === null || b === null) return '<span style="color:var(--mute)">비교할 기록 부족</span>';
+      const x = a - b; if (Math.abs(x) < Math.pow(10, -d) / 2) return '변화 없음';
+      return '<span class="' + ((x > 0) === goodWhenUp ? 'good' : 'bad') + '">' + (x > 0 ? '▲' : '▼') + ' ' + Math.abs(x).toFixed(d) + unit + '</span>';
+    };
+    const fx = (x, d = 0) => (x === null ? '–' : x.toFixed(d));
+    const s1 = avg(rec(curD, 'systolic')), s0 = avg(rec(prevD, 'systolic')), d1 = avg(rec(curD, 'diastolic'));
+    const w1 = avg(rec(curD, 'weight_kg')), w0 = avg(rec(prevD, 'weight_kg'));
+    const run1 = sum(rec(curD, 'run_km')), run0 = sum(rec(prevD, 'run_km'));
+    const k1 = avg(food(curD, 'kcal')), k0 = avg(food(prevD, 'kcal'));
+    const n1 = avg(food(curD, 'sodium')), n0 = avg(food(prevD, 'sodium'));
+    const logged = curD.filter((d) => intake[d]).length, lowDays = curD.filter((d) => intake[d] && intake[d].sodium <= SODIUM_GOAL).length;
+    $('stats').innerHTML = [
+      ['평균 혈압', fx(s1) + '/' + fx(d1), '수축기 ' + diff(s1, s0, 0, 'mmHg')],
+      ['평균 체중', fx(w1, 1) + '<small> kg</small>', diff(w1, w0, 1, 'kg')],
+      ['러닝 합계', run1.toFixed(1) + '<small> km</small>', diff(run1, run0, 1, 'km', true)],
+      ['하루 평균 칼로리', fmtN(k1) + '<small> kcal</small>', diff(k1, k0, 0, 'kcal')],
+      ['하루 평균 나트륨', fmtN(n1) + '<small> mg</small>', diff(n1, n0, 0, 'mg')],
+      ['나트륨 목표 지킨 날', lowDays + '<small> / ' + logged + '일</small>', '<span style="color:var(--mute)">식사 적은 날 기준</span>'],
+    ].map(([k, v, d]) => '<div class="stat"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="d">' + d + '</div></div>').join('');
+  }
+
+  document.querySelectorAll('#period button').forEach((b) => b.addEventListener('click', () => { state.days = Number(b.dataset.days); renderCharts(); }));
+  function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function renderCharts() {
+    document.querySelectorAll('#period button').forEach((b) => b.classList.toggle('on', Number(b.dataset.days) === state.days));
+    if (typeof Chart === 'undefined') { toast('그래프를 불러오지 못했습니다. 새로고침해 주세요'); return; }
+    Chart.defaults.font.family = 'Pretendard, -apple-system, sans-serif';
+    const from = todayStr(-(state.days - 1)), intake = dailyIntake();
+    const dates = Array.from(new Set(state.records.map((r) => r.date).concat(Object.keys(intake)))).filter((d) => d >= from && d <= todayStr()).sort();
+    const recOf = (d) => state.records.find((r) => r.date === d) || {};
+    const labels = dates.map((d) => d.slice(5).replace('-', '.'));
+    const grid = cssVar('--hair'), text = cssVar('--mute');
+    const common = { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'bottom', labels: { color: text, boxWidth: 10, boxHeight: 10, usePointStyle: true } } } };
+    const axis = (extra) => Object.assign({ grid: { color: grid }, border: { display: false }, ticks: { color: text, maxRotation: 0, autoSkipPadding: 10 } }, extra);
+    const line = (label, data, color, yAxisID, extra) => Object.assign({ type: 'line', label, data, borderColor: color, backgroundColor: color,
+      spanGaps: true, tension: .3, borderWidth: 2, pointRadius: dates.length > 45 ? 0 : 2.5, yAxisID }, extra || {});
+
+    charts.bp && charts.bp.destroy();
+    charts.bp = new Chart($('chart-bp'), { type: 'line',
+      data: { labels, datasets: [
+        line('수축기', dates.map((d) => recOf(d).systolic ?? null), cssVar('--red'), 'y'),
+        line('이완기', dates.map((d) => recOf(d).diastolic ?? null), cssVar('--teal'), 'y'),
+        line('체중', dates.map((d) => recOf(d).weight_kg ?? null), cssVar('--mute'), 'y2', { borderDash: [5, 4], borderWidth: 1.5 }),
+      ] },
+      options: Object.assign({}, common, { scales: { x: axis({ grid: { display: false } }),
+        y: axis({ position: 'left', title: { display: true, text: 'mmHg', color: text } }),
+        y2: axis({ position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'kg', color: text } }) } }),
+    });
+
+    charts.food && charts.food.destroy();
+    charts.food = new Chart($('chart-food'), {
+      data: { labels, datasets: [
+        { type: 'bar', label: '칼로리', data: dates.map((d) => (intake[d] ? Math.round(intake[d].kcal) : null)), backgroundColor: cssVar('--panel-line'), borderRadius: 3, yAxisID: 'y', order: 3 },
+        line('나트륨', dates.map((d) => (intake[d] ? Math.round(intake[d].sodium) : null)), cssVar('--red'), 'y2', { order: 1 }),
+        line('목표 2,000mg', dates.map(() => SODIUM_GOAL), cssVar('--green'), 'y2', { borderDash: [4, 4], pointRadius: 0, borderWidth: 1.5, order: 2 }),
+      ] },
+      options: Object.assign({}, common, { scales: { x: axis({ grid: { display: false } }),
+        y: axis({ position: 'left', beginAtZero: true, title: { display: true, text: 'kcal', color: text } }),
+        y2: axis({ position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'mg', color: text } }) } }),
+    });
+
+    charts.run && charts.run.destroy();
+    charts.run = new Chart($('chart-run'), { type: 'bar',
+      data: { labels, datasets: [{ label: '러닝 km', data: dates.map((d) => recOf(d).run_km || 0), backgroundColor: cssVar('--teal'), borderRadius: 3 }] },
+      options: Object.assign({}, common, { plugins: { legend: { display: false } }, scales: { x: axis({ grid: { display: false } }), y: axis({ beginAtZero: true }) } }),
+    });
+  }
+
+  // ───── 위치 ─────
+  function getGps(timeout = 7000) {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error('위치 기능 없음'));
+      const t = setTimeout(() => reject(new Error('시간 초과')), timeout + 800);
+      try {
+        navigator.geolocation.getCurrentPosition(
+          (p) => { clearTimeout(t); resolve({ lat: p.coords.latitude, lng: p.coords.longitude }); },
+          (e) => { clearTimeout(t); reject(e); },
+          { enableHighAccuracy: false, timeout, maximumAge: 10 * 60 * 1000 });
+      } catch (e) { clearTimeout(t); reject(e); }
+    });
+  }
+  function haversineKm(a, b) {
+    const R = 6371, toR = Math.PI / 180, dLat = (b[0] - a[0]) * toR, dLng = (b[1] - a[1]) * toR;
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * toR) * Math.cos(b[0] * toR) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
+  // ───── 식당 탭 ─────
+  function renderOrigins() {
+    const o = state.origin;
+    $('origins').innerHTML =
+      '<button class="chip' + (o && o.type === 'gps' ? ' on' : '') + '" data-origin="gps">📍 내 위치</button>' +
+      state.places.map((p) => '<button class="chip' + (o && o.type === 'place' && o.name === p.name ? ' on' : '') + '" data-origin="' + esc(p.name) + '">' + esc(p.name) + '</button>').join('') +
+      '<button class="chip" data-origin="+" style="border-style:dashed;color:var(--teal)">＋ 장소</button>';
+    $('origin-label').innerHTML = o ? '기준: ' + esc(o.label || o.name) +
+      (o.type === 'place' ? ' <button data-delplace="' + esc(o.name) + '" style="color:var(--mute);font-size:12px;text-decoration:underline">이 장소 삭제</button>' : '') : '';
+  }
+  function renderFoodTab() {
+    const hasKey = state.settings.hasKakaoKey;
+    $('kakao-missing').style.display = hasKey ? 'none' : 'block';
+    $('search-area').style.display = hasKey ? 'block' : 'none';
+    renderOrigins();
+    $('themes').innerHTML = [{ key: 'all', label: '전체' }].concat(state.themes)
+      .map((t) => '<button class="chip' + (state.theme === t.key ? ' on' : '') + '" data-theme="' + t.key + '">' + esc(t.label) + '</button>').join('');
+    renderResults(); renderSaved();
+  }
+  async function useGps(quiet) {
+    $('origin-label').textContent = '내 위치를 읽는 중…';
+    try {
+      const g = await getGps();
+      state.gps = true; state.origin = { type: 'gps', name: '내 위치', label: '현재 위치', lat: g.lat, lng: g.lng };
+      renderOrigins(); return true;
+    } catch (e) {
+      state.gps = false; renderOrigins();
+      if (!quiet) toast('위치를 읽지 못했습니다. 설정에서 사파리 위치 권한을 허용했는지 확인해 주세요');
+      return false;
+    }
+  }
+  async function autoSearch() {
+    if (!state.settings.hasKakaoKey) return;
+    state.searched = true;
+    if (await useGps(true)) return runSearch();
+    if (state.places.length) { const p = state.places[0]; state.origin = Object.assign({ type: 'place' }, p); renderOrigins(); return runSearch(); }
+    $('place-form').hidden = false;
+    $('results').innerHTML = '<p class="empty">내 위치를 읽을 수 없어서 기준 장소가 필요합니다. 집 주소를 한 번 저장하면 다음부터는 탭을 열 때 자동으로 찾아 줍니다.</p>';
+  }
+  async function runSearch() {
+    if (!state.origin) { $('results').innerHTML = '<p class="empty">기준 위치를 먼저 고르세요.</p>'; return; }
+    $('results').innerHTML = '<p class="empty">찾는 중…</p>';
+    try { state.results = await call('apiSearchRestaurants', state.theme, { lat: state.origin.lat, lng: state.origin.lng }); renderResults(); }
+    catch (err) { $('results').innerHTML = '<div class="alert">' + esc(errMsg(err)) + '</div>'; }
+  }
+  $('origins').addEventListener('click', async (e) => {
+    const v = e.target.dataset.origin; if (!v) return;
+    if (v === '+') { $('place-form').hidden = false; $('p-name').focus(); return; }
+    if (v === 'gps') { if (await useGps(false)) runSearch(); return; }
+    const p = state.places.find((x) => x.name === v);
+    if (p) { state.origin = Object.assign({ type: 'place' }, p); renderOrigins(); runSearch(); }
+  });
+  $('origin-label').addEventListener('click', async (e) => {
+    const n = e.target.dataset.delplace; if (!n || !confirm('"' + n + '" 장소를 삭제할까요?')) return;
+    try { state.places = await call('apiDeletePlace', n); state.origin = null; renderFoodTab(); toast('삭제했습니다'); } catch (err) { toast(errMsg(err)); }
+  });
+  $('p-cancel').addEventListener('click', () => { $('place-form').hidden = true; });
+  $('p-save').addEventListener('click', async () => {
+    const btn = $('p-save'); btn.disabled = true;
+    try {
+      const name = val('p-name') || '집';
+      state.places = await call('apiAddPlace', name, val('p-addr'));
+      const p = state.places.find((x) => x.name === name);
+      state.origin = Object.assign({ type: 'place' }, p);
+      $('p-name').value = ''; $('p-addr').value = ''; $('place-form').hidden = true;
+      renderFoodTab(); toast(name + ' 장소를 저장했습니다'); runSearch();
+    } catch (err) { toast(errMsg(err)); }
+    btn.disabled = false;
+  });
+  $('themes').addEventListener('click', (e) => {
+    const key = e.target.dataset.theme; if (!key) return;
+    state.theme = key; renderFoodTab(); runSearch();
+  });
+
+  function placeCard(p, mode) {
+    const saved = state.restaurants.some((r) => r.id === p.id);
+    const tel = p.phone ? '<a href="tel:' + esc(p.phone.replace(/[^0-9+]/g, '')) + '">전화</a>' : '';
+    const map = p.link ? '<a href="' + esc(p.link) + '" target="_blank" rel="noopener">카카오맵</a>' : '';
+    const btn = mode === 'saved' ? '<button data-remove="' + esc(p.id) + '">삭제</button>'
+      : (saved ? '<button disabled>저장됨</button>' : '<button data-keep="' + esc(p.id) + '">저장</button>');
+    const meta = [p.distance_km != null && p.distance_km !== '' ? p.distance_km + 'km' : '', p.category, p.address].filter(Boolean).map(esc).join(', ');
+    return '<div class="place"><div class="name">' + esc(p.name) + '</div><div class="meta">' + meta + '</div>' +
+      (p.tip ? '<div class="tip">' + esc(p.tip) + '</div>' : '') + '<div class="actions">' + tel + map + btn + '</div></div>';
+  }
+  function renderResults() {
+    if (!state.searched) { $('results').innerHTML = ''; return; }
+    if (!state.results.length) { $('results').innerHTML = '<p class="empty">10km 안에서 찾지 못했습니다. 다른 메뉴나 장소를 골라 보세요.</p>'; return; }
+    $('results').innerHTML = state.results.map((p) => placeCard(p, 'search')).join('');
+  }
+  function renderSaved() { $('saved').innerHTML = state.restaurants.length ? state.restaurants.map((p) => placeCard(p, 'saved')).join('') : '<p class="empty">저장한 식당이 없습니다.</p>'; }
+  $('tab-food').addEventListener('click', async (e) => {
+    const keep = e.target.dataset.keep, remove = e.target.dataset.remove;
+    try {
+      if (keep) { state.restaurants = await call('apiSaveRestaurant', state.results.find((x) => x.id === keep)); renderSaved(); renderResults(); toast('식당을 저장했습니다'); }
+      if (remove && confirm('저장한 식당에서 삭제할까요?')) { state.restaurants = await call('apiDeleteRestaurant', remove); renderSaved(); renderResults(); toast('삭제했습니다'); }
+    } catch (err) { toast(errMsg(err)); }
+  });
+  $('btn-add').addEventListener('click', async () => {
+    try {
+      state.restaurants = await call('apiSaveRestaurant', { name: val('m-name'), address: val('m-addr'), phone: val('m-phone'), tip: val('m-tip') });
+      ['m-name', 'm-addr', 'm-phone', 'm-tip'].forEach((id) => ($(id).value = '')); renderSaved(); toast('식당을 저장했습니다');
+    } catch (e) { toast(errMsg(e)); }
+  });
+
+  // ───── 러닝 코스 ─────
+  function renderCourseChips() {
+    $('course-chips').innerHTML = '<button class="cchip gps" id="open-run">▶ GPS 러닝</button><span class="lab">내 코스</span>' +
+      state.courses.map((c) => '<button class="cchip" data-course="' + esc(c.id) + '">' + esc(c.name) + ' <b>' + c.km + 'km</b></button>').join('') +
+      '<button class="cchip add" id="open-course">＋ 코스 만들기</button>';
+  }
+  $('course-chips').addEventListener('click', (e) => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    if (btn.id === 'open-course') { openCoursePanel(); return; }
+    if (btn.id === 'open-run') { openRunPanel(); return; }
+    const c = state.courses.find((x) => x.id === btn.dataset.course); if (!c) return;
+    const now = Number($('f-run').value) || 0;
+    $('f-run').value = Math.round((now + c.km) * 100) / 100;
+    toast(c.name + ' +' + c.km + 'km (저장을 눌러야 기록됩니다)');
+  });
+
+  // 코스 = 누른 점들(taps)과 점 사이 구간(segs: 길 따라 얻은 경로와 거리)
+  const course = { map: null, line: null, markers: [], taps: [], segs: [], editing: null, busy: false };
+  function loadLeaflet() {
+    if (window.L) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(css);
+      const js = document.createElement('script'); js.src = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
+      js.onload = resolve; js.onerror = () => reject(new Error('지도를 불러오지 못했습니다'));
+      document.head.appendChild(js);
+    });
+  }
+  function coursePath() {
+    if (!course.taps.length) return [];
+    const out = [course.taps[0]];
+    course.segs.forEach((sg) => sg.path.slice(1).forEach((p) => out.push(p)));
+    return out;
+  }
+  function courseKmTotal() { return course.segs.reduce((a, sg) => a + sg.km, 0); }
+  function drawCourse() {
+    const path = coursePath();
+    if (course.line) course.line.setLatLngs(path);
+    course.markers.forEach((m) => m.remove()); course.markers = [];
+    if (course.map) course.taps.forEach((p, i) => {
+      const end = i === 0 || i === course.taps.length - 1;
+      course.markers.push(L.circleMarker(p, { radius: i === 0 ? 7 : end ? 5 : 3, color: '#0f5c63', weight: 2, fillColor: i === 0 ? '#ffffff' : '#0f5c63', fillOpacity: 1 }).addTo(course.map));
+    });
+    $('c-km').textContent = courseKmTotal().toFixed(2);
+    const straight = course.segs.some((sg) => sg.straight);
+    $('c-hint').textContent = course.busy ? '길 찾는 중…'
+      : course.taps.length < 2 ? '지도에서 출발점을 누르고, 뛰는 방향으로 몇 군데 더 누르세요.'
+      : (straight ? '일부 구간은 직선으로 이었습니다. ' : '') + '점 ' + course.taps.length + '개. 길이 갈라지는 곳마다 눌러 주면 원하는 길로 잡힙니다.';
+  }
+  async function addTap(pt) {
+    if (course.busy) return;
+    if (!course.taps.length) { course.taps.push(pt); drawCourse(); return; }
+    const from = course.taps[course.taps.length - 1];
+    let seg = { km: haversineKm(from, pt), path: [from, pt], straight: true };
+    if ($('c-walk').checked) {
+      course.busy = true; drawCourse();
+      try {
+        const r = await call('apiWalkSegment', from, pt);
+        seg = { km: r.km, path: r.path, straight: r.straight };
+        if (r.reason) toast(r.reason);
+      } catch (e) { toast(errMsg(e) + ' (직선으로 이었습니다)'); }
+      course.busy = false;
+    }
+    course.taps.push(pt); course.segs.push(seg); drawCourse();
+  }
+  function renderCourseList() {
+    $('c-list').innerHTML = state.courses.length
+      ? '<h2 style="margin:18px 0 0">저장한 코스</h2>' + state.courses.map((c) => '<div class="mi"><button data-show="' + esc(c.id) + '" style="text-align:left">' + esc(c.name) + ' <b>' + c.km + 'km</b></button>' +
+        '<button class="x" data-delcourse="' + esc(c.id) + '">삭제</button></div>').join('')
+      : '';
+  }
+  async function openCoursePanel() {
+    $('course-panel').hidden = false; document.body.style.overflow = 'hidden';
+    $('c-walk').checked = !!state.settings.hasKakaoKey; $('c-walk').disabled = !state.settings.hasKakaoKey;
+    renderCourseList(); drawCourse();
+    try { await loadLeaflet(); } catch (e) { $('c-hint').textContent = errMsg(e) + '. 인터넷 연결을 확인해 주세요.'; return; }
+    if (!course.map) {
+      const c = state.places[0] || state.settings.center || { lat: 35.5038, lng: 128.7466 };
+      course.map = L.map('map', { zoomControl: true }).setView([c.lat, c.lng], 15);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(course.map);
+      course.line = L.polyline([], { color: '#0f5c63', weight: 5, opacity: .85 }).addTo(course.map);
+      course.map.on('click', (e) => addTap([e.latlng.lat, e.latlng.lng]));
+      getGps(5000).then((g) => { if (!course.taps.length) course.map.setView([g.lat, g.lng], 16); }).catch(() => {});
+    }
+    setTimeout(() => course.map.invalidateSize(), 50);
+    drawCourse();
+  }
+  function resetCourse() { course.taps = []; course.segs = []; course.editing = null; $('c-name').value = ''; drawCourse(); }
+  function closeCoursePanel() { $('course-panel').hidden = true; document.body.style.overflow = ''; }
+  $('c-close').addEventListener('click', closeCoursePanel);
+  $('c-undo').addEventListener('click', () => { if (course.busy) return; course.taps.pop(); course.segs.splice(Math.max(0, course.taps.length - 1)); drawCourse(); });
+  $('c-reset').addEventListener('click', () => { if (!course.busy) resetCourse(); });
+  $('c-loop').addEventListener('click', () => { if (course.taps.length > 1) addTap(course.taps[0].slice()); });
+  function thin(path, max) {
+    if (path.length <= max) return path;
+    const step = (path.length - 1) / (max - 1), out = [];
+    for (let i = 0; i < max; i++) out.push(path[Math.round(i * step)]);
+    return out;
+  }
+  $('c-save').addEventListener('click', async () => {
+    const km = courseKmTotal();
+    if (course.taps.length < 2 || km < 0.05) { toast('지도에서 코스를 먼저 그려 주세요'); return; }
+    const btn = $('c-save'); btn.disabled = true;
+    try {
+      state.courses = await call('apiSaveCourse', { id: course.editing, name: val('c-name'), km: Math.round(km * 100) / 100, points: thin(coursePath(), 380) });
+      toast('코스를 저장했습니다'); resetCourse(); renderCourseList(); renderCourseChips();
+    } catch (e) { toast(errMsg(e)); }
+    btn.disabled = false;
+  });
+  $('c-list').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    if (btn.dataset.show) {
+      const c = state.courses.find((x) => x.id === btn.dataset.show); if (!c || !c.points.length) return;
+      // 저장된 코스는 경로 그대로 불러와 보여주고, 이름·거리만 고칠 수 있게 합니다
+      course.taps = [c.points[0], c.points[c.points.length - 1]];
+      course.segs = [{ km: c.km, path: c.points.map((p) => p.slice()), straight: false }];
+      course.editing = c.id; $('c-name').value = c.name; drawCourse();
+      if (course.map) course.map.fitBounds(L.latLngBounds(c.points), { padding: [24, 24] });
+      return;
+    }
+    if (btn.dataset.delcourse && confirm('이 코스를 삭제할까요?')) {
+      try { state.courses = await call('apiDeleteCourse', btn.dataset.delcourse); renderCourseList(); renderCourseChips(); toast('삭제했습니다'); }
+      catch (err) { toast(errMsg(err)); }
+    }
+  });
+
+  // ───── GPS 러닝 기록 ─────
+  const RUN_KEY = 'bp_run';
+  const run = { state: 'idle', pts: [], km: 0, elapsed: 0, lastTick: 0, startedAt: null, watchId: null, wake: null, timer: null,
+    last: null, acc: null, map: null, line: null, me: null, follow: true };
+  // 속도(km/h)별 운동 강도(MET). 2024 신체활동 목록의 걷기·달리기 값을 단순화했습니다.
+  const MET_TABLE = [[3.2, 2.8], [4.8, 3.5], [5.6, 4.3], [6.4, 5.0], [8.0, 8.3], [9.7, 9.8], [10.8, 10.5], [11.3, 11.0], [12.9, 11.8], [14.5, 12.8], [16.1, 14.5]];
+  function metFor(kmh) {
+    if (kmh <= MET_TABLE[0][0]) return MET_TABLE[0][1];
+    for (let i = 1; i < MET_TABLE.length; i++) {
+      const [x1, y1] = MET_TABLE[i - 1], [x2, y2] = MET_TABLE[i];
+      if (kmh <= x2) return y1 + (y2 - y1) * (kmh - x1) / (x2 - x1);
+    }
+    return MET_TABLE[MET_TABLE.length - 1][1];
+  }
+  function myWeight() { const r = state.records.slice().reverse().find((x) => x.weight_kg); return r ? r.weight_kg : null; }
+  function runKcal() {
+    const h = run.elapsed / 3600000; if (h <= 0 || run.km <= 0) return 0;
+    return Math.round(metFor(run.km / h) * (myWeight() || 70) * h);
+  }
+  function fmtTime(ms) {
+    const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+    return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(ss).padStart(2, '0');
+  }
+  function fmtPace(ms, km) {
+    if (km < 0.05) return '–';
+    const sec = Math.round(ms / 1000 / km); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+  }
+  function persistRun() {
+    try { localStorage.setItem(RUN_KEY, JSON.stringify({ state: run.state, pts: run.pts, km: run.km, elapsed: run.elapsed, startedAt: run.startedAt, savedAt: Date.now() })); } catch (_) {}
+  }
+  function clearPersisted() { try { localStorage.removeItem(RUN_KEY); } catch (_) {} }
+
+  function renderRun() {
+    $('r-km').textContent = run.km.toFixed(2);
+    $('r-time').textContent = fmtTime(run.elapsed);
+    $('r-pace').textContent = fmtPace(run.elapsed, run.km);
+    $('r-kcal').textContent = runKcal();
+    $('r-gps').innerHTML = run.state === 'running' ? (run.acc == null ? '찾는 중…' : (run.acc <= 20 ? '<b style="color:var(--green)">좋음</b>' : run.acc <= 35 ? '보통' : '<span style="color:var(--red)">약함</span>') + ' ±' + Math.round(run.acc || 0) + 'm') : (run.state === 'paused' ? '일시정지' : '대기');
+    const B = (id, cls, label) => '<button id="' + id + '" class="' + cls + '">' + label + '</button>';
+    $('r-btns').innerHTML =
+      run.state === 'idle' ? B('r-start', 'go full', '▶ 시작')
+      : run.state === 'running' ? B('r-pause', 'soft', '일시정지') + B('r-stop', 'stop', '종료')
+      : run.state === 'paused' ? B('r-resume', 'go', '계속') + B('r-stop', 'stop', '종료')
+      : B('r-discard', 'soft', '버리기') + B('r-save', 'go', '기록 저장');
+    $('r-title').textContent = run.state === 'done' ? '러닝 끝 · 저장할까요?' : 'GPS 러닝';
+    $('r-note').hidden = run.state === 'done';
+    if (run.line) run.line.setLatLngs(run.pts.map((p) => (p ? [p[0], p[1]] : null)).reduce((segs, p) => { if (!p) segs.push([]); else segs[segs.length - 1].push(p); return segs; }, [[]]));
+    renderRunList();
+  }
+  function renderRunList() {
+    const list = (state.runs || []).slice(-5).reverse();
+    $('r-list').innerHTML = list.length && run.state !== 'running'
+      ? '<h2 style="margin:18px 0 0">최근 GPS 러닝</h2>' + list.map((r) => '<div class="mi"><span>' + esc(r.date.slice(5).replace('-', '.')) + ' · <b>' + r.km + 'km</b> <span class="meta">' + fmtTime((r.duration_s || 0) * 1000) + ' · ' + esc(r.pace) + '/km' + (r.kcal ? ' · ' + r.kcal + 'kcal' : '') + '</span></span>' +
+        '<button class="x" data-delrun="' + esc(r.id) + '">삭제</button></div>').join('') : '';
+  }
+
+  function onPosition(p) {
+    run.acc = p.coords.accuracy;
+    const pt = [p.coords.latitude, p.coords.longitude, p.timestamp || Date.now()];
+    if (run.me) run.me.setLatLng([pt[0], pt[1]]);
+    if (run.map && run.follow) run.map.setView([pt[0], pt[1]], Math.max(run.map.getZoom(), 16), { animate: false });
+    if (run.state !== 'running') { renderRun(); return; }
+    if (run.acc > 35) { renderRun(); return; } // 정확도가 낮은 점은 버립니다
+    if (run.last) {
+      const d = haversineKm(run.last, pt), dt = Math.max(1, (pt[2] - run.last[2]) / 1000), kmh = d / dt * 3600;
+      if (d < 0.005) { renderRun(); return; }        // 5m 미만 흔들림은 무시
+      if (kmh > 25) { renderRun(); return; }         // 비정상적인 순간이동은 무시
+      run.km += d;
+    }
+    run.last = pt; run.pts.push(pt);
+    renderRun(); persistRun();
+  }
+  function onGpsError(e) {
+    run.acc = null;
+    $('r-gps').innerHTML = '<span style="color:var(--red)">' + (e && e.code === 1 ? '위치 권한 없음' : '신호 없음') + '</span>';
+    if (e && e.code === 1) toast('위치 권한이 꺼져 있습니다. 아이폰 설정 → 개인정보 보호 → 위치 서비스 → Safari에서 허용해 주세요');
+  }
+  async function keepAwake() {
+    try { if ('wakeLock' in navigator && !run.wake) { run.wake = await navigator.wakeLock.request('screen'); run.wake.addEventListener('release', () => { run.wake = null; }); } } catch (_) {}
+  }
+  function releaseAwake() { try { if (run.wake) run.wake.release(); } catch (_) {} run.wake = null; }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && run.state === 'running') keepAwake(); });
+
+  function startWatch() {
+    if (run.watchId != null || !navigator.geolocation) return;
+    run.watchId = navigator.geolocation.watchPosition(onPosition, onGpsError, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+  }
+  function stopWatch() { if (run.watchId != null) navigator.geolocation.clearWatch(run.watchId); run.watchId = null; }
+  function tick() {
+    const now = Date.now();
+    if (run.state === 'running') run.elapsed += now - run.lastTick;
+    run.lastTick = now; renderRun();
+  }
+  function startRun() {
+    if (!navigator.geolocation) { toast('이 기기에서는 위치를 쓸 수 없습니다'); return; }
+    run.state = 'running'; run.startedAt = run.startedAt || new Date().toISOString(); run.lastTick = Date.now();
+    startWatch(); keepAwake();
+    clearInterval(run.timer); run.timer = setInterval(tick, 1000);
+    if (!myWeight()) toast('체중 기록이 없어 70kg 기준으로 칼로리를 계산합니다');
+    renderRun(); persistRun();
+  }
+  function pauseRun() { tick(); run.state = 'paused'; run.last = null; run.pts.push(null); releaseAwake(); renderRun(); persistRun(); }
+  function resumeRun() { run.state = 'running'; run.lastTick = Date.now(); keepAwake(); renderRun(); persistRun(); }
+  function stopRun() { tick(); run.state = 'done'; stopWatch(); clearInterval(run.timer); releaseAwake(); renderRun(); persistRun(); }
+  function resetRun() {
+    stopWatch(); clearInterval(run.timer); releaseAwake();
+    Object.assign(run, { state: 'idle', pts: [], km: 0, elapsed: 0, lastTick: 0, startedAt: null, last: null, acc: null });
+    clearPersisted(); renderRun();
+  }
+  async function saveRun() {
+    if (run.km < 0.05 || run.elapsed < 30000) { toast('너무 짧아서 저장할 수 없습니다 (50m, 30초 이상)'); return; }
+    const btn = $('r-save'); btn.disabled = true; btn.textContent = '저장 중…';
+    const started = new Date(run.startedAt || Date.now());
+    const pts = run.pts.filter(Boolean).map((p) => [p[0], p[1]]);
+    try {
+      const res = await call('apiSaveRun', { date: ymd(started), started_at: String(started.getHours()).padStart(2, '0') + ':' + String(started.getMinutes()).padStart(2, '0'),
+        km: Math.round(run.km * 100) / 100, duration_s: Math.round(run.elapsed / 1000), kcal: runKcal(), points: thin(pts, 500) });
+      state.records = res.records; state.runs = res.runs;
+      toast(run.km.toFixed(2) + 'km 러닝을 저장했습니다'); resetRun(); fillForm(); renderRecent();
+    } catch (e) { toast(errMsg(e)); btn.disabled = false; btn.textContent = '기록 저장'; }
+  }
+  async function openRunPanel() {
+    $('run-panel').hidden = false; document.body.style.overflow = 'hidden';
+    renderRun();
+    try { await loadLeaflet(); } catch (e) { toast(errMsg(e)); }
+    if (window.L && !run.map) {
+      const c = state.places[0] || state.settings.center || { lat: 35.5038, lng: 128.7466 };
+      run.map = L.map('rmap', { zoomControl: false }).setView([c.lat, c.lng], 15);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(run.map);
+      run.line = L.polyline([], { color: '#0f5c63', weight: 6, opacity: .9 }).addTo(run.map);
+      run.me = L.circleMarker([c.lat, c.lng], { radius: 8, color: '#ffffff', weight: 3, fillColor: '#c4492d', fillOpacity: 1 }).addTo(run.map);
+      run.map.on('dragstart', () => { run.follow = false; });
+    }
+    if (run.map) setTimeout(() => run.map.invalidateSize(), 50);
+    startWatch(); // 시작 전에도 내 위치와 GPS 상태를 보여줍니다
+    renderRun();
+  }
+  function closeRunPanel() {
+    if (run.state === 'running' || run.state === 'paused') { toast('기록 중입니다. 종료를 누른 뒤 닫아 주세요'); return; }
+    if (run.state === 'idle') stopWatch();
+    $('run-panel').hidden = true; document.body.style.overflow = '';
+  }
+  $('r-close').addEventListener('click', closeRunPanel);
+  $('r-btns').addEventListener('click', (e) => {
+    const id = e.target.id;
+    if (id === 'r-start') startRun();
+    if (id === 'r-pause') pauseRun();
+    if (id === 'r-resume') resumeRun();
+    if (id === 'r-stop' && confirm('러닝을 종료할까요?')) stopRun();
+    if (id === 'r-save') saveRun();
+    if (id === 'r-discard' && confirm('이번 기록을 버릴까요?')) resetRun();
+  });
+  $('r-list').addEventListener('click', async (e) => {
+    const id = e.target.dataset.delrun; if (!id || !confirm('이 러닝 기록을 삭제할까요? 그날 러닝 거리에서도 빠집니다.')) return;
+    try { const res = await call('apiDeleteRun', id); state.records = res.records; state.runs = res.runs; renderRunList(); fillForm(); renderRecent(); toast('삭제했습니다'); }
+    catch (err) { toast(errMsg(err)); }
+  });
+  // 앱이 꺼졌다 켜져도 기록 중이던 러닝을 이어 갑니다
+  function restoreRun() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(RUN_KEY) || 'null'); } catch (_) {}
+    if (!saved || saved.state === 'idle' || Date.now() - saved.savedAt > 12 * 3600 * 1000) return;
+    Object.assign(run, { pts: saved.pts || [], km: saved.km || 0, elapsed: saved.elapsed || 0, startedAt: saved.startedAt, last: null,
+      state: saved.state === 'done' ? 'done' : 'paused' });
+    if (run.state === 'paused' && run.pts.length && run.pts[run.pts.length - 1]) run.pts.push(null);
+    openRunPanel(); toast(run.state === 'done' ? '저장하지 않은 러닝 기록이 있습니다' : '기록 중이던 러닝이 있습니다. [계속]을 누르세요');
+  }
+
+  // ───── 카톡 알림 설정 ─────
+  const NOTIFY_LABELS = { morning: ['아침 8시 혈압 알림', '혈압 잴 시간과 지난 기록을 보내 드려요'],
+    evening: ['저녁 8시 운동 확인', '안 적었으면 코스를 골라 바로 저장할 수 있어요'],
+    weekly: ['월요일 8시 주간 리포트', '지난주 혈압·체중·러닝·나트륨 요약'] };
+  function renderSettings() {
+    const k = state.settings.kakao || {};
+    let html = '<div class="status"><span class="dot' + (k.linked ? ' on' : '') + '"></span>' + (k.linked ? '카카오톡 연결됨' : '카카오톡 연결 전') + '</div>';
+    if (!k.ready) {
+      html += '<div class="alert">아직 준비가 덜 됐습니다. Apps Script 스크립트 속성에 <b>WEBAPP_URL</b>(배포한 웹앱 주소)과 <b>KAKAO_REST_KEY</b>가 있어야 합니다.</div>';
+    } else if (!k.linked) {
+      html += '<a class="linkbtn" href="' + esc(k.authUrl) + '" target="_blank" rel="noopener">카카오톡 연결하기</a>' +
+        '<ol class="steps"><li>카카오 화면에서 "카카오톡 메시지 전송"에 동의합니다.</li><li>"연결 완료"가 뜨면 이 앱으로 돌아와 새로고침하세요.</li></ol>';
+    }
+    html += '<div style="margin-top:12px">' + Object.keys(NOTIFY_LABELS).map((key) =>
+      '<label class="switch"><span>' + NOTIFY_LABELS[key][0] + '<small>' + NOTIFY_LABELS[key][1] + '</small></span>' +
+      '<input type="checkbox" data-notify="' + key + '"' + ((k.notify || {})[key] ? ' checked' : '') + (k.linked ? '' : ' disabled') + '></label>').join('') + '</div>';
+    if (k.linked) {
+      html += '<button class="ghost" id="s-test" style="width:100%;margin-top:16px">테스트 메시지 보내기</button>' +
+        '<p class="sub">알림은 정각부터 15분 사이에 옵니다 (구글 예약 방식). 카톡 "나와의 채팅"으로 옵니다.</p>' +
+        '<button id="s-unlink" style="color:var(--red);font-size:13px;text-decoration:underline;margin-top:16px">카카오톡 연결 끊기</button>';
+    }
+    $('s-body').innerHTML = html;
+  }
+  $('open-settings').addEventListener('click', () => { renderSettings(); $('settings-panel').hidden = false; document.body.style.overflow = 'hidden'; });
+  $('s-close').addEventListener('click', () => { $('settings-panel').hidden = true; document.body.style.overflow = ''; });
+  $('s-body').addEventListener('change', async (e) => {
+    const kind = e.target.dataset.notify; if (!kind) return;
+    const on = e.target.checked; e.target.disabled = true;
+    try { state.settings.kakao = await call('apiSetNotify', kind, on); toast(NOTIFY_LABELS[kind][0] + (on ? ' 켰습니다' : ' 껐습니다')); }
+    catch (err) { e.target.checked = !on; toast(errMsg(err)); }
+    renderSettings();
+  });
+  $('s-body').addEventListener('click', async (e) => {
+    if (e.target.id === 's-test') {
+      e.target.disabled = true;
+      try { await call('apiSendTest'); toast('카톡을 확인해 보세요'); } catch (err) { toast(errMsg(err)); }
+      e.target.disabled = false;
+    }
+    if (e.target.id === 's-unlink' && confirm('카카오톡 연결을 끊고 알림을 모두 끌까요?')) {
+      try { state.settings.kakao = await call('apiUnlinkKakao'); renderSettings(); toast('연결을 끊었습니다'); } catch (err) { toast(errMsg(err)); }
+    }
+  });
+
+  // ───── 시작 ─────
+  (async function init() {
+    if (!CFG.k || !CFG.api) {
+      $('loading').innerHTML = '<div class="alert">열쇠가 없는 주소로 열었습니다. PC의 Apps Script 편집기에서 <b>showMyLinks</b>를 실행하고, 로그의 ①번 주소로 다시 열어 주세요.</div>';
+      return;
+    }
+    try {
+      Object.assign(state, await call('apiGetData'));
+      state.meal = defaultMeal(); renderMealSeg();
+      setDate(todayStr()); renderFoodTab(); renderCourseChips();
+      $('loading').style.display = 'none';
+      showTab(['record', 'meal', 'trend', 'food'].includes(CFG.tab) ? CFG.tab : 'record');
+      restoreRun();
+    } catch (e) {
+      $('loading').innerHTML = '<div class="alert">불러오지 못했습니다: ' + esc(errMsg(e)) + '</div>';
+    }
+  })();
+</script>
+</body>
+</html>

@@ -198,6 +198,9 @@
   .gpsline { font-size: 13px; color: var(--mute); margin: 8px 0 0; }
   .gpsline b { color: var(--ink); }
 
+  .sync { font-size: 12px; color: var(--mute); margin-left: 8px; white-space: nowrap; }
+  .sync[hidden] { display: none; }
+
   /* 알림 설정 */
   .bell { width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--hair); background: var(--surface); display: grid; place-items: center; margin-left: auto; margin-right: 8px; }
   .bell svg { width: 20px; height: 20px; fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -233,7 +236,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>혈압 관리</h1>
+  <h1>혈압 관리<span class="sync" id="sync" hidden>새로 고치는 중…</span></h1>
   <button class="bell" id="open-settings" aria-label="카톡 알림 설정"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4l2-2Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></button>
   <div class="datepick" id="datepick" style="visibility:hidden">
     <button id="d-prev" aria-label="전날">‹</button>
@@ -420,13 +423,17 @@
   async function call(fn, ...args) {
     if (!CFG.k || !CFG.api) throw new Error('열쇠가 없습니다');
     let res;
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), 30000) : null;
     try {
-      res = await fetch(CFG.api, { method: 'POST', redirect: 'follow',
+      res = await fetch(CFG.api, { method: 'POST', redirect: 'follow', signal: ctrl ? ctrl.signal : undefined,
         headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ k: CFG.k, fn, args }) });
     } catch (e) {
+      if (e && e.name === 'AbortError') throw new Error('데이터 서버가 30초 넘게 응답하지 않습니다. 잠시 뒤 다시 시도해 주세요.');
       throw new Error(navigator.onLine === false ? '인터넷에 연결되어 있지 않습니다.'
         : '데이터 서버가 응답을 막았습니다. [원인] Apps Script 배포의 "액세스 권한이 있는 사용자"가 "모든 사용자"가 아닙니다. [해결] 배포 관리 → ✏️ → 모든 사용자 → 새 버전 → 배포');
     }
+    finally { if (timer) clearTimeout(timer); }
     const text = await res.text();
     let j = null;
     try { j = JSON.parse(text); } catch (_) {}
@@ -436,8 +443,17 @@
       throw new Error('데이터 서버 응답을 읽지 못했습니다 (' + res.status + '). 배포가 "모든 사용자", "새 버전"인지 확인해 주세요.');
     }
     if (!j.ok) throw new Error(j.code === 'KEY' ? '열쇠가 맞지 않습니다. showMyLinks의 ①번 주소로 다시 열어 주세요.' : (j.error || '알 수 없는 오류'));
+    if (fn !== 'apiGetData' && fn !== 'apiSearchRestaurants' && fn !== 'apiWalkSegment') setTimeout(saveCache, 0);
     return j.data;
   }
+  // 이 휴대폰에 마지막 데이터를 저장해 두고, 앱을 열면 먼저 보여준 뒤 뒤에서 새로 받아옵니다.
+  const CACHE_KEY = 'bp_cache';
+  const CACHE_FIELDS = ['records', 'meals', 'foods', 'customFoods', 'restaurants', 'courses', 'runs', 'places', 'settings', 'themes'];
+  function saveCache() {
+    try { const o = {}; CACHE_FIELDS.forEach((f) => { o[f] = state[f]; }); localStorage.setItem(CACHE_KEY, JSON.stringify(o)); } catch (_) {}
+  }
+  function loadCache() { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); } catch (_) { return null; } }
+
   function toast(msg) {
     const t = $('toast'); t.textContent = msg; t.classList.add('show');
     clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2600);
@@ -1237,21 +1253,41 @@
   });
 
   // ───── 시작 ─────
+  // 새 데이터가 와도, 이미 입력 중인 칸은 지우지 않습니다
+  let typing = false;
+  ['f-sys', 'f-dia', 'f-pulse', 'f-weight', 'f-run', 'f-memo'].forEach((id) => $(id).addEventListener('input', () => { typing = true; }));
+  function renderAll() {
+    renderMealSeg();
+    if (typing) { renderRecent(); renderTodayStrip(); renderMealDay(); } else setDate(state.date || todayStr());
+    renderFoodTab(); renderCourseChips();
+    if (state.tab === 'trend') { renderStats(); renderCharts(); }
+    $('datepick').style.visibility = state.tab === 'record' || state.tab === 'meal' ? 'visible' : 'hidden';
+  }
   (async function init() {
     if (!CFG.k || !CFG.api) {
       $('loading').innerHTML = '<div class="alert">열쇠가 없는 주소로 열었습니다. PC의 Apps Script 편집기에서 <b>showMyLinks</b>를 실행하고, 로그의 ①번 주소로 다시 열어 주세요.</div>';
       return;
     }
+    state.meal = defaultMeal();
+    const startTab = ['record', 'meal', 'trend', 'food'].includes(CFG.tab) ? CFG.tab : 'record';
+    const cached = loadCache();
+    let shown = false;
+    if (cached && cached.records) {
+      Object.assign(state, cached); state.searched = true; // 식당 자동 검색은 새 데이터가 온 뒤에
+      $('loading').style.display = 'none'; renderAll(); showTab(startTab); shown = true;
+    }
+    $('sync').hidden = !shown;
     try {
-      Object.assign(state, await call('apiGetData'));
-      state.meal = defaultMeal(); renderMealSeg();
-      setDate(todayStr()); renderFoodTab(); renderCourseChips();
-      $('loading').style.display = 'none';
-      showTab(['record', 'meal', 'trend', 'food'].includes(CFG.tab) ? CFG.tab : 'record');
+      const fresh = await call('apiGetData');
+      Object.assign(state, fresh); saveCache();
+      if (shown) { renderAll(); state.searched = false; if (state.tab === 'food') autoSearch(); }
+      else { $('loading').style.display = 'none'; renderAll(); showTab(startTab); }
       restoreRun();
     } catch (e) {
-      $('loading').innerHTML = '<div class="alert">불러오지 못했습니다: ' + esc(errMsg(e)) + '</div>';
+      if (shown) toast('새 데이터를 받지 못해 마지막 기록을 보여주고 있습니다: ' + errMsg(e));
+      else $('loading').innerHTML = '<div class="alert">불러오지 못했습니다: ' + esc(errMsg(e)) + '</div>';
     }
+    $('sync').hidden = true;
   })();
 </script>
 </body>

@@ -831,16 +831,23 @@ const Repo = {
 };
 
 // ───────────────────────── 내부 도우미 ─────────────────────────
+// 한 번의 요청 안에서는 시트를 한 번만 엽니다 (여는 데 시간이 가장 많이 걸립니다).
+let SS_CACHE_ = null;
+const HEADER_CACHE_ = {};
+const READY_CACHE_ = {};
+
 function spreadsheet_() {
+  if (SS_CACHE_) return SS_CACHE_;
   const id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
-  if (id) return SpreadsheetApp.openById(id);
+  if (id) return (SS_CACHE_ = SpreadsheetApp.openById(id));
   const active = SpreadsheetApp.getActiveSpreadsheet();
   if (!active) throw new Error('먼저 편집기에서 setup 함수를 한 번 실행해 주세요.');
-  return active;
+  return (SS_CACHE_ = active);
 }
 
 /** 시트가 없으면 만들고, 1행 제목에 빠진 칸이 있으면 오른쪽 끝에 추가합니다(기존 데이터 보존). */
 function ensureSheet_(ss, name, columns) {
+  delete HEADER_CACHE_[name];
   let sheet = ss.getSheetByName(name);
   if (!sheet) sheet = ss.insertSheet(name);
   const width = Math.max(sheet.getLastColumn(), 1);
@@ -854,6 +861,7 @@ function ensureSheet_(ss, name, columns) {
       sheet.getRange(1, current.length + 1, 1, missing.length).setValues([missing]).setFontWeight('bold').setBackground('#e8eef7');
     }
   }
+  delete HEADER_CACHE_[name];
   headerOf_(sheet).forEach(function (h, i) {
     if (CONFIG.TEXT_COLUMNS.indexOf(h) >= 0) sheet.getRange(1, i + 1, sheet.getMaxRows(), 1).setNumberFormat('@');
   });
@@ -861,6 +869,11 @@ function ensureSheet_(ss, name, columns) {
 }
 
 function getSheet_(name, columns) {
+  if (READY_CACHE_[name]) return READY_CACHE_[name];
+  return (READY_CACHE_[name] = getSheetChecked_(name, columns));
+}
+
+function getSheetChecked_(name, columns) {
   const ss = spreadsheet_();
   const sheet = ss.getSheetByName(name);
   if (!sheet) return ensureSheet_(ss, name, columns);
@@ -870,9 +883,11 @@ function getSheet_(name, columns) {
 }
 
 function headerOf_(sheet) {
+  const key = sheet.getName();
+  if (HEADER_CACHE_[key]) return HEADER_CACHE_[key];
   const width = sheet.getLastColumn();
   if (width < 1) return [];
-  return sheet.getRange(1, 1, 1, width).getValues()[0].map(function (h) { return String(h).trim(); });
+  return (HEADER_CACHE_[key] = sheet.getRange(1, 1, 1, width).getValues()[0].map(function (h) { return String(h).trim(); }));
 }
 
 /** 객체를 시트의 1행 제목 순서에 맞춘 한 줄로 바꿉니다. (열 순서가 바뀌거나 늘어나도 안전) */

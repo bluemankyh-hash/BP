@@ -17,7 +17,9 @@ const CONFIG = {
   SHEET_COURSES: '코스',
   SHEET_RUNS: '러닝',
   // 1행 제목(영문 키). 나중에 데이터베이스로 옮길 때 이 이름이 그대로 칸 이름이 됩니다.
-  RECORD_COLUMNS: ['date', 'systolic', 'diastolic', 'pulse', 'weight_kg', 'run_km', 'memo', 'updated_at'],
+  RECORD_COLUMNS: ['date', 'systolic', 'diastolic', 'pulse', 'weight_kg', 'run_km', 'memo', 'updated_at', 'pain'],
+  PAIN_PARTS: ['허리', '골반', '허벅지', '무릎', '종아리', '발목'], // 통증 체크 부위
+  VERSION: 2, // 화면이 이 값을 보고 서버가 새 기능을 지원하는지 확인합니다
   MEAL_COLUMNS: ['id', 'date', 'meal', 'food', 'matched', 'qty', 'unit', 'kcal', 'sodium_mg', 'source', 'created_at'],
   CUSTOM_FOOD_COLUMNS: ['name', 'unit', 'kcal', 'sodium_mg', 'updated_at'],
   RESTAURANT_COLUMNS: ['id', 'name', 'category', 'address', 'phone', 'tip', 'link', 'created_at'],
@@ -123,11 +125,12 @@ function apiGetData() {
     foods: foodDb_(),
     restaurants: Repo.listRestaurants(),
     courses: Repo.listCourses(),
-    runs: Repo.listRuns().slice(-60),
+    runs: runsForApp_(),
     places: listPlaces_(),
     settings: {
       hasKakaoKey: !!props.getProperty('KAKAO_REST_KEY'),
       center: CONFIG.DEFAULT_CENTER,
+      version: CONFIG.VERSION,
       kakao: kakaoStatus_(),
     },
     themes: LOW_SALT_THEMES.map(function (t) { return { key: t.key, label: t.label }; }),
@@ -289,7 +292,7 @@ function apiSaveRun(input) {
     Repo.addRun(run);
     addRunKm_(date, run.km);
   });
-  return { records: Repo.listRecords(), runs: Repo.listRuns().slice(-60) };
+  return { records: Repo.listRecords(), runs: runsForApp_() };
 }
 
 function apiDeleteRun(id) {
@@ -299,7 +302,22 @@ function apiDeleteRun(id) {
     Repo.deleteRun(id);
     addRunKm_(run.date, -run.km);
   });
-  return { records: Repo.listRecords(), runs: Repo.listRuns().slice(-60) };
+  return { records: Repo.listRecords(), runs: runsForApp_() };
+}
+
+/** 화면에 보낼 러닝 목록: 최근 60개, 그중 최근 12개만 경로(최대 80점)를 붙여 가볍게 보냅니다. */
+function runsForApp_() {
+  const runs = Repo.listRuns().slice(-60);
+  return runs.map(function (r, i) {
+    const out = { id: r.id, date: r.date, started_at: r.started_at, km: r.km, duration_s: r.duration_s, pace: r.pace, kcal: r.kcal, source: r.source };
+    if (i >= runs.length - 12) {
+      let pts = [];
+      try { pts = JSON.parse(r.pointsText || '[]'); } catch (e) { pts = []; }
+      if (pts.length > 80) { const step = (pts.length - 1) / 79; pts = Array.from({ length: 80 }, function (_, k) { return pts[Math.round(k * step)]; }); }
+      out.points = pts;
+    }
+    return out;
+  });
 }
 
 /** 그날 기록의 run_km에 거리를 더하거나 뺍니다 (다른 값은 그대로). */
@@ -307,7 +325,7 @@ function addRunKm_(date, deltaKm) {
   const rec = Repo.listRecords().filter(function (r) { return r.date === date; })[0];
   const total = Math.max(0, Math.round((((rec && rec.run_km) || 0) + deltaKm) * 100) / 100);
   const row = { date: date, updated_at: nowText_() };
-  ['systolic', 'diastolic', 'pulse', 'weight_kg', 'memo'].forEach(function (k) { row[k] = rec && rec[k] !== null && rec[k] !== undefined ? rec[k] : ''; });
+  ['systolic', 'diastolic', 'pulse', 'weight_kg', 'memo', 'pain'].forEach(function (k) { row[k] = rec && rec[k] !== null && rec[k] !== undefined ? rec[k] : ''; });
   row.run_km = total || '';
   Repo.upsertRecord(row);
 }
@@ -700,7 +718,7 @@ const Repo = {
           date: r.date,
           systolic: toNum_(r.systolic), diastolic: toNum_(r.diastolic), pulse: toNum_(r.pulse),
           weight_kg: toNum_(r.weight_kg), run_km: toNum_(r.run_km),
-          memo: String(r.memo || ''), updated_at: String(r.updated_at || ''),
+          memo: String(r.memo || ''), updated_at: String(r.updated_at || ''), pain: String(r.pain || ''),
         };
       })
       .sort(byDate_);
@@ -791,7 +809,7 @@ const Repo = {
       .filter(function (r) { return r.id && r.date; })
       .map(function (r) {
         return { id: String(r.id), date: r.date, started_at: String(r.started_at || ''), km: toNum_(r.km), duration_s: toNum_(r.duration_s),
-          pace: String(r.pace || ''), kcal: toNum_(r.kcal), source: String(r.source || '') };
+          pace: String(r.pace || ''), kcal: toNum_(r.kcal), source: String(r.source || ''), pointsText: String(r.points || '') };
       })
       .sort(byDate_); // 같은 날은 저장한 순서대로
   },
@@ -943,12 +961,21 @@ function cleanRecord_(input) {
     weight_kg: num_(input.weight_kg, 20, 300, '체중'),
     run_km: num_(input.run_km, 0, 100, '러닝 거리'),
     memo: String(input.memo || '').slice(0, 500),
+    pain: cleanPain_(input.pain),
   };
   if ((rec.systolic === '') !== (rec.diastolic === '')) throw new Error('혈압은 수축기와 이완기를 함께 입력해 주세요.');
   if (rec.systolic !== '' && rec.diastolic >= rec.systolic) throw new Error('이완기 혈압이 수축기보다 클 수 없습니다. 순서를 확인해 주세요.');
-  const hasAny = ['systolic', 'pulse', 'weight_kg', 'run_km'].some(function (k) { return rec[k] !== ''; }) || rec.memo;
+  const hasAny = ['systolic', 'pulse', 'weight_kg', 'run_km'].some(function (k) { return rec[k] !== ''; }) || rec.memo || rec.pain;
   if (!hasAny) throw new Error('입력된 값이 없습니다.');
   return rec;
+}
+
+/** 통증 기록: "무릎:2,발목:1" 형태 (1 = 뻐근함, 2 = 아픔). 정해진 부위만 받습니다. */
+function cleanPain_(v) {
+  return String(v || '').split(',').map(function (x) { return x.trim(); }).filter(function (x) {
+    const m = x.match(/^(.+):([12])$/);
+    return m && CONFIG.PAIN_PARTS.indexOf(m[1]) >= 0;
+  }).slice(0, CONFIG.PAIN_PARTS.length).join(',');
 }
 
 function cleanMealItem_(it) {

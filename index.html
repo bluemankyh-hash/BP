@@ -201,6 +201,87 @@
   .sync { font-size: 12px; color: var(--mute); margin-left: 8px; white-space: nowrap; }
   .sync[hidden] { display: none; }
 
+
+  /* ───── 러닝 탭 ───── */
+  :root { --run: #f0531c; --run-soft: #fde9e1; --hero: #13212b; --hero-2: #1d3340; --hero-ink: #f3f6f8; --hero-mute: #9fb2bf; }
+  @media (prefers-color-scheme: dark) { :root { --run: #ff6a33; --run-soft: #3a2219; --hero: #0f1a22; --hero-2: #19303d; } }
+  .runhero { margin: 16px 0 0; padding: 20px 18px 18px; border-radius: 22px; color: var(--hero-ink);
+    background: radial-gradient(120% 90% at 100% 0%, var(--hero-2) 0%, var(--hero) 60%); }
+  .runhero .rh-top { display: flex; align-items: center; gap: 18px; }
+  .ring { width: 124px; height: 124px; flex: none; position: relative; }
+  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring .mid { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring .mid b { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-feature-settings: "tnum"; }
+  .ring .mid small { font-size: 12px; color: var(--hero-mute); margin-top: 3px; }
+  .runhero .side .k { font-size: 12px; color: var(--hero-mute); }
+  .runhero .side .v { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; font-feature-settings: "tnum"; }
+  .runhero .side .v small { font-size: 13px; color: var(--hero-mute); font-weight: 600; }
+  .runhero .side > div + div { margin-top: 8px; }
+  .goal-btn { color: var(--hero-mute); font-size: 12px; text-decoration: underline; padding: 0; }
+  .bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; align-items: end; height: 92px; margin-top: 18px; }
+  .bars .col { display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+  .bars .bar { width: 100%; max-width: 28px; border-radius: 6px 6px 3px 3px; background: rgba(255, 255, 255, .12); min-height: 4px; }
+  .bars .bar.on { background: var(--run); }
+  .bars .d { font-size: 11px; color: var(--hero-mute); }
+  .bars .col.today .d { color: var(--hero-ink); font-weight: 700; }
+  .bars .km { font-size: 10px; color: var(--hero-ink); font-feature-settings: "tnum"; min-height: 12px; }
+
+  .gate { display: flex; gap: 10px; align-items: flex-start; border-radius: 14px; padding: 12px 14px; font-size: 14px; margin-top: 14px; }
+  .gate b { display: block; font-size: 15px; }
+  .gate.ok { background: var(--teal-soft); color: var(--ink); }
+  .gate.caution { background: #fff4dc; color: #6b4a08; }
+  .gate.stop { background: var(--red-soft); color: var(--red); }
+  @media (prefers-color-scheme: dark) { .gate.caution { background: #3b2f12; color: #f3d48a; } }
+  .gate .ic { font-size: 18px; line-height: 1.3; }
+  .startbtn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 64px; margin-top: 12px; border-radius: 18px;
+    background: var(--run); color: #fff; font-size: 20px; font-weight: 800; letter-spacing: -0.01em; box-shadow: 0 6px 18px -8px var(--run); }
+  .startbtn svg { width: 22px; height: 22px; fill: #fff; }
+  .startbtn.locked { background: var(--hair); color: var(--mute); box-shadow: none; }
+  .quick { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+  .quick .lab { font-size: 13px; color: var(--mute); }
+
+  .body-wrap { display: grid; grid-template-columns: 150px 1fr; gap: 14px; align-items: center; }
+  .body-svg { width: 150px; height: 270px; }
+  .body-svg .sil { fill: var(--panel); stroke: var(--panel-line); stroke-width: 1.5; }
+  .body-svg .spot { cursor: pointer; stroke: var(--surface); stroke-width: 2; }
+  .body-svg .spot.l0 { fill: var(--panel-line); }
+  .body-svg .spot.l1 { fill: var(--amber); }
+  .body-svg .spot.l2 { fill: var(--red); }
+  .parts { display: grid; gap: 6px; }
+  .part { display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--hair); background: var(--surface); border-radius: 10px; padding: 7px 10px; font-size: 14px; }
+  .part .lv { font-size: 12px; color: var(--mute); }
+  .part.l1 { border-color: var(--amber); } .part.l1 .lv { color: var(--amber); font-weight: 700; }
+  .part.l2 { border-color: var(--red); } .part.l2 .lv { color: var(--red); font-weight: 700; }
+
+  .prs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pr { border: 1px solid var(--hair); background: var(--surface); border-radius: 14px; padding: 12px; }
+  .pr .k { font-size: 12px; color: var(--mute); }
+  .pr .v { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; font-feature-settings: "tnum"; }
+  .pr .v small { font-size: 13px; color: var(--mute); font-weight: 600; }
+  .pr .d { font-size: 12px; color: var(--mute); }
+
+  .act { display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--hair); }
+  .act:last-child { border-bottom: 0; }
+  .act .route { width: 56px; height: 56px; border-radius: 12px; background: var(--panel); display: grid; place-items: center; }
+  .act .route svg { width: 46px; height: 46px; }
+  .act .route .shoe { font-size: 22px; }
+  .act .t { font-size: 13px; color: var(--mute); }
+  .act .main { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; font-feature-settings: "tnum"; }
+  .act .main span { font-size: 14px; font-weight: 600; color: var(--mute); margin-left: 8px; }
+  .disclaimer { margin-top: 18px; padding: 12px 14px; border-radius: 12px; background: var(--panel); color: var(--mute); font-size: 12.5px; line-height: 1.55; }
+
+  /* 진료용 리포트 (인쇄할 때만 보임) */
+  #report { display: none; }
+  @media print {
+    body { background: #fff; color: #000; padding: 0; }
+    body > *:not(#report) { display: none !important; }
+    #report { display: block; font: 12px/1.5 Pretendard, sans-serif; padding: 12mm; }
+    #report h1 { font-size: 18px; margin: 0 0 4px; }
+    #report table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    #report th, #report td { border: 1px solid #999; padding: 4px 6px; text-align: center; font-size: 11px; }
+    #report td.memo { text-align: left; }
+  }
+
   /* 알림 설정 */
   .bell { width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--hair); background: var(--surface); display: grid; place-items: center; margin-left: auto; margin-right: 8px; }
   .bell svg { width: 20px; height: 20px; fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -270,6 +351,32 @@
     <section class="block">
       <h2>최근 기록</h2>
       <div id="recent"></div>
+      <p class="disclaimer">이 앱은 의료기기가 아니며 진단하지 않습니다. 기록과 안내는 참고용이며, 혈압약 조절이나 증상은 반드시 의사와 상의하세요. 혈압이 180/110 이상이거나 가슴 통증·두통·숨참이 있으면 바로 진료를 받으세요.</p>
+    </section>
+  </div>
+
+  <!-- 러닝 -->
+  <div id="tab-run" class="tab">
+    <div class="runhero" id="run-hero"></div>
+    <section class="block" style="border-bottom:0;padding-bottom:4px">
+      <div id="run-gate"></div>
+      <button class="startbtn" id="run-start"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg>러닝 시작</button>
+      <div class="quick" id="run-quick"></div>
+    </section>
+    <section class="block">
+      <h2>최근 러닝</h2>
+      <div id="run-acts"></div>
+    </section>
+    <section class="block">
+      <h2>오늘 몸 상태</h2>
+      <p class="sub" style="margin:-6px 0 12px">아픈 곳을 누르세요. 한 번 누르면 뻐근함, 두 번 누르면 아픔, 세 번이면 지워집니다.</p>
+      <div class="body-wrap"><svg class="body-svg" id="body-svg" viewBox="0 0 160 300" aria-label="몸 그림"></svg><div class="parts" id="body-parts"></div></div>
+      <button class="primary" id="pain-save">몸 상태 저장</button>
+      <p class="sub" id="pain-note"></p>
+    </section>
+    <section class="block">
+      <h2>내 기록</h2>
+      <div class="prs" id="run-prs"></div>
     </section>
   </div>
 
@@ -312,6 +419,14 @@
       <div class="chart" style="height:170px"><canvas id="chart-run"></canvas></div>
       <p class="sub">이 앱은 의료기기가 아니며 진단을 하지 않습니다. 약 조절은 의사와 상의하세요.</p>
     </section>
+    <section class="block">
+      <h2>진료용 요약</h2>
+      <p class="sub" style="margin:-6px 0 12px">최근 30일 혈압·체중·러닝·나트륨·메모를 표 한 장으로 만듭니다. 병원 갈 때 보여주세요.</p>
+      <div class="row2" style="grid-template-columns:1fr 1fr">
+        <button class="ghost" id="rep-print">인쇄 · PDF 저장</button>
+        <button class="ghost" id="rep-csv">엑셀(CSV) 내려받기</button>
+      </div>
+    </section>
   </div>
 
   <!-- 식당 -->
@@ -352,6 +467,7 @@
   </div>
 </main>
 
+<div id="report"></div>
 <div class="panel" id="run-panel" hidden>
   <div class="panel-head"><b id="r-title">GPS 러닝</b><button id="r-close">닫기</button></div>
   <div id="rmap"></div>
@@ -392,6 +508,7 @@
 
 <nav><div class="in">
   <button data-tab="record" class="on"><svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>기록</button>
+  <button data-tab="run"><svg viewBox="0 0 24 24"><circle cx="14.5" cy="4.5" r="1.8"/><path d="m9 20 2.5-5 3 2.5V21"/><path d="M6.5 11.5 9.5 8l4 .5 2.5 3.5 3 .5"/><path d="m11.5 15-2-3.5"/></svg>러닝</button>
   <button data-tab="meal"><svg viewBox="0 0 24 24"><path d="M3 11h18a9 9 0 0 1-18 0Z"/><path d="M8 7c0-1.5 1-2 1-3.5M12 7c0-1.5 1-2 1-3.5M16 7c0-1.5 1-2 1-3.5"/></svg>식사</button>
   <button data-tab="trend"><svg viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="m7 14 4-4 3 3 5-6"/></svg>추이</button>
   <button data-tab="food"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>식당</button>
@@ -483,6 +600,7 @@
     document.querySelectorAll('.tab').forEach((s) => s.classList.toggle('on', s.id === 'tab-' + name));
     $('datepick').style.visibility = name === 'record' || name === 'meal' ? 'visible' : 'hidden';
     if (name === 'trend') { renderStats(); renderCharts(); }
+    if (name === 'run') renderRunTab();
     if (name === 'food' && !state.searched) autoSearch();
     window.scrollTo(0, 0);
   }
@@ -918,7 +1036,7 @@
 
   // ───── 러닝 코스 ─────
   function renderCourseChips() {
-    $('course-chips').innerHTML = '<button class="cchip gps" id="open-run">▶ GPS 러닝</button><span class="lab">내 코스</span>' +
+    $('course-chips').innerHTML = '<span class="lab">내 코스</span>' +
       state.courses.map((c) => '<button class="cchip" data-course="' + esc(c.id) + '">' + esc(c.name) + ' <b>' + c.km + 'km</b></button>').join('') +
       '<button class="cchip add" id="open-course">＋ 코스 만들기</button>';
   }
@@ -1136,6 +1254,9 @@
   }
   function startRun() {
     if (!navigator.geolocation) { toast('이 기기에서는 위치를 쓸 수 없습니다'); return; }
+    const g = runGate();
+    if (g.level === 'stop') { toast(g.title + ' ' + g.text); return; }
+    if (g.confirm && !confirm(g.title + '\n' + g.text + '\n\n그래도 시작할까요?')) return;
     run.state = 'running'; run.startedAt = run.startedAt || new Date().toISOString(); run.lastTick = Date.now();
     startWatch(); keepAwake();
     clearInterval(run.timer); run.timer = setInterval(tick, 1000);
@@ -1159,7 +1280,7 @@
       const res = await call('apiSaveRun', { date: ymd(started), started_at: String(started.getHours()).padStart(2, '0') + ':' + String(started.getMinutes()).padStart(2, '0'),
         km: Math.round(run.km * 100) / 100, duration_s: Math.round(run.elapsed / 1000), kcal: runKcal(), points: thin(pts, 500) });
       state.records = res.records; state.runs = res.runs;
-      toast(run.km.toFixed(2) + 'km 러닝을 저장했습니다'); resetRun(); fillForm(); renderRecent();
+      toast(run.km.toFixed(2) + 'km 러닝을 저장했습니다'); resetRun(); fillForm(); renderRecent(); renderRunTab();
     } catch (e) { toast(errMsg(e)); btn.disabled = false; btn.textContent = '기록 저장'; }
   }
   async function openRunPanel() {
@@ -1208,6 +1329,208 @@
     if (run.state === 'paused' && run.pts.length && run.pts[run.pts.length - 1]) run.pts.push(null);
     openRunPanel(); toast(run.state === 'done' ? '저장하지 않은 러닝 기록이 있습니다' : '기록 중이던 러닝이 있습니다. [계속]을 누르세요');
   }
+
+  // ───── 러닝 탭 ─────
+  const PAIN_PARTS = ['허리', '골반', '허벅지', '무릎', '종아리', '발목'];
+  const PAIN_LV = ['없음', '뻐근함', '아픔'];
+  const GOAL_KEY = 'bp_run_goal';
+  function runGoal() { try { return Number(localStorage.getItem(GOAL_KEY)) || 15; } catch (_) { return 15; } }
+  function recOf(d) { return state.records.find((r) => r.date === d) || null; }
+  function dayKm(d) { const r = recOf(d); return (r && r.run_km) || 0; }
+  function mondayOf(d) { const [y, m, dd] = d.split('-').map(Number); const t = new Date(y, m - 1, dd); const w = (t.getDay() + 6) % 7; t.setDate(t.getDate() - w); return ymd(t); }
+  function parsePain(str) {
+    const o = {}; String(str || '').split(',').forEach((x) => { const m = x.match(/^(.+):([12])$/); if (m) o[m[1]] = Number(m[2]); }); return o;
+  }
+  function painString(o) { return PAIN_PARTS.filter((p) => o[p]).map((p) => p + ':' + o[p]).join(','); }
+  function serverV2() { return (state.settings && state.settings.version || 0) >= 2; }
+
+  // 오늘 러닝해도 되는지: 혈압 → 통증 순서로 판단합니다
+  function runGate() {
+    const today = todayStr();
+    const bp = [today, shiftDate(today, -1)].map(recOf).find((r) => r && r.systolic != null);
+    if (bp && (bp.systolic >= 180 || bp.diastolic >= 110)) {
+      return { level: 'stop', icon: '⛔', title: '오늘은 러닝을 쉬세요.', text: '혈압 ' + bp.systolic + '/' + bp.diastolic + '은 운동을 시작하면 안 되는 수준입니다. 안정 후 다시 재고, 계속 높거나 두통·가슴 통증이 있으면 바로 진료를 받으세요.' };
+    }
+    // 같은 부위 통증이 며칠째인지 (오늘 기록이 없으면 어제까지 기준)
+    let end = today; if (!(recOf(today) || {}).pain) end = shiftDate(today, -1);
+    let streak = null;
+    PAIN_PARTS.forEach((part) => {
+      let n = 0; for (let d = end; parsePain((recOf(d) || {}).pain)[part]; d = shiftDate(d, -1)) n++;
+      if (n >= 3 && (!streak || n > streak.n)) streak = { part, n };
+    });
+    if (streak) return { level: 'caution', confirm: true, icon: '🩹', title: streak.part + ' 통증이 ' + streak.n + '일째예요.', text: '오늘은 쉬거나 걷기로 바꾸세요. 계속 아프면 진료를 받아 보세요.' };
+    const todayPain = parsePain((recOf(today) || {}).pain);
+    const hurt = PAIN_PARTS.filter((p) => todayPain[p] === 2);
+    if (hurt.length) return { level: 'caution', confirm: true, icon: '🩹', title: '오늘 ' + hurt.join('·') + '이(가) 아프다고 적었어요.', text: '무리하지 말고 거리를 줄이세요.' };
+    if (bp && (bp.systolic >= 160 || bp.diastolic >= 100)) {
+      return { level: 'caution', icon: '⚠️', title: '혈압이 높은 편이에요 (' + bp.systolic + '/' + bp.diastolic + ').', text: '오늘은 가볍게 걷기나 천천히 조깅만 하세요.' };
+    }
+    if (!bp) return { level: 'ok', icon: '🩺', title: '오늘 혈압을 아직 안 쟀어요.', text: '뛰기 전에 재 두면 안전 안내를 받을 수 있어요.' };
+    return { level: 'ok', icon: '✅', title: '좋아요, 오늘 혈압 ' + bp.systolic + '/' + bp.diastolic + '.', text: '몸이 괜찮다면 계획대로 뛰세요.' };
+  }
+
+  function renderRunHero() {
+    const today = todayStr(), mon = mondayOf(today), goal = runGoal();
+    const week = Array.from({ length: 7 }, (_, i) => shiftDate(mon, i));
+    const kms = week.map(dayKm), weekKm = kms.reduce((a, b) => a + b, 0);
+    const month = today.slice(0, 7);
+    const monthKm = state.records.filter((r) => r.date.startsWith(month)).reduce((a, r) => a + (r.run_km || 0), 0);
+    // 연속 러닝 주: 이번 주가 아직 비어도 지난주까지 이어졌으면 유지
+    const weeks = new Set(state.records.filter((r) => r.run_km > 0).map((r) => mondayOf(r.date)));
+    let w = weeks.has(mon) ? mon : shiftDate(mon, -7), streak = 0;
+    while (weeks.has(w)) { streak++; w = shiftDate(w, -7); }
+    const C = 2 * Math.PI * 52, pct = Math.min(1, weekKm / goal);
+    const max = Math.max(goal / 3, ...kms, 1);
+    $('run-hero').innerHTML =
+      '<div class="rh-top"><div class="ring"><svg viewBox="0 0 124 124"><circle cx="62" cy="62" r="52" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="12"/>' +
+      '<circle cx="62" cy="62" r="52" fill="none" stroke="var(--run)" stroke-width="12" stroke-linecap="round" stroke-dasharray="' + (C * pct).toFixed(1) + ' ' + C.toFixed(1) + '"/></svg>' +
+      '<div class="mid"><b>' + weekKm.toFixed(1) + '</b><small>/ ' + goal + 'km</small></div></div>' +
+      '<div class="side"><div><div class="k">이번 주</div><div class="v">' + Math.round(pct * 100) + '<small>% 달성</small></div></div>' +
+      '<div><div class="k">' + Number(month.slice(5)) + '월 누적</div><div class="v">' + monthKm.toFixed(1) + '<small> km</small></div></div>' +
+      '<div><div class="k">연속 러닝</div><div class="v">' + streak + '<small>주째</small></div></div>' +
+      '<button class="goal-btn" id="goal-edit">주간 목표 바꾸기</button></div></div>' +
+      '<div class="bars">' + week.map((d, i) => '<div class="col' + (d === today ? ' today' : '') + '"><div class="km">' + (kms[i] ? kms[i].toFixed(1) : '') + '</div>' +
+        '<div class="bar' + (kms[i] ? ' on' : '') + '" style="height:' + Math.max(4, kms[i] / max * 60) + 'px"></div><div class="d">' + '월화수목금토일'[i] + '</div></div>').join('') + '</div>';
+  }
+  $('run-hero').addEventListener('click', (e) => {
+    if (e.target.id !== 'goal-edit') return;
+    const v = prompt('한 주에 몇 km를 뛸까요?', runGoal());
+    const n = Number(v); if (!v || !isFinite(n) || n <= 0 || n > 300) return;
+    try { localStorage.setItem(GOAL_KEY, String(Math.round(n * 10) / 10)); } catch (_) {}
+    renderRunHero();
+  });
+
+  function renderRunGate() {
+    const g = runGate();
+    $('run-gate').innerHTML = '<div class="gate ' + g.level + '"><span class="ic">' + g.icon + '</span><span><b>' + esc(g.title) + '</b>' + esc(g.text) + '</span></div>';
+    $('run-start').classList.toggle('locked', g.level === 'stop');
+    $('run-quick').innerHTML = state.courses.length
+      ? '<span class="lab">워치로 뛰었다면 코스로 바로 기록</span>' + state.courses.map((c) => '<button class="cchip" data-qcourse="' + esc(c.id) + '">' + esc(c.name) + ' <b>' + c.km + 'km</b></button>').join('') +
+        '<button class="cchip add" id="q-course">＋ 코스</button>'
+      : '<button class="cchip add" id="q-course">＋ 자주 뛰는 코스 만들기</button>';
+  }
+  $('run-start').addEventListener('click', () => {
+    const g = runGate();
+    if (g.level === 'stop') { toast(g.title); return; }
+    openRunPanel();
+  });
+  $('run-quick').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    if (btn.id === 'q-course') { openCoursePanel(); return; }
+    const c = state.courses.find((x) => x.id === btn.dataset.qcourse); if (!c) return;
+    if (!confirm('오늘 러닝에 ' + c.name + ' ' + c.km + 'km를 더할까요?')) return;
+    try { await addToToday({ addKm: c.km }); toast(c.name + ' ' + c.km + 'km를 기록했습니다'); } catch (err) { toast(errMsg(err)); }
+  });
+  // 오늘 기록의 다른 값은 그대로 두고 러닝 거리나 통증만 바꿉니다
+  async function addToToday(change) {
+    const today = todayStr(), r = recOf(today) || {};
+    const rec = { date: today };
+    ['systolic', 'diastolic', 'pulse', 'weight_kg', 'run_km', 'memo', 'pain'].forEach((k) => { rec[k] = r[k] == null ? '' : r[k]; });
+    if (change.addKm) rec.run_km = Math.round(((Number(rec.run_km) || 0) + change.addKm) * 100) / 100;
+    if ('pain' in change) rec.pain = change.pain;
+    state.records = await call('apiSaveRecord', rec);
+    if (state.date === today && !typing) fillForm();
+    renderRecent(); renderRunTab();
+  }
+
+  // 몸 그림
+  const SPOTS = { 허리: [[80, 112]], 골반: [[80, 140]], 허벅지: [[65, 172], [95, 172]], 무릎: [[65, 205], [95, 205]], 종아리: [[65, 238], [95, 238]], 발목: [[65, 274], [95, 274]] };
+  let painDraft = null;
+  function renderBody() {
+    if (!painDraft) painDraft = parsePain((recOf(todayStr()) || {}).pain);
+    const sil = '<circle class="sil" cx="80" cy="24" r="15"/><rect class="sil" x="74" y="38" width="12" height="10" rx="3"/>' +
+      '<rect class="sil" x="52" y="46" width="56" height="104" rx="20"/><rect class="sil" x="34" y="52" width="15" height="92" rx="7.5"/><rect class="sil" x="111" y="52" width="15" height="92" rx="7.5"/>' +
+      '<rect class="sil" x="55" y="138" width="21" height="148" rx="10"/><rect class="sil" x="84" y="138" width="21" height="148" rx="10"/>';
+    const spots = PAIN_PARTS.map((part) => SPOTS[part].map(([x, y]) =>
+      '<circle class="spot l' + (painDraft[part] || 0) + '" data-part="' + part + '" cx="' + x + '" cy="' + y + '" r="10"><title>' + part + '</title></circle>').join('')).join('');
+    $('body-svg').innerHTML = sil + spots;
+    $('body-parts').innerHTML = PAIN_PARTS.map((p) => '<button class="part l' + (painDraft[p] || 0) + '" data-part="' + p + '"><span>' + p + '</span><span class="lv">' + PAIN_LV[painDraft[p] || 0] + '</span></button>').join('');
+    const saved = (recOf(todayStr()) || {}).pain || '';
+    const dirty = painString(painDraft) !== painString(parsePain(saved));
+    $('pain-save').disabled = !dirty;
+    $('pain-save').textContent = dirty ? '몸 상태 저장' : (saved ? '저장됨' : '아픈 곳이 없어요');
+    $('pain-note').textContent = serverV2() ? '' : '몸 상태를 저장하려면 데이터 서버(Code.gs)를 새 버전으로 바꿔야 합니다.';
+  }
+  function bumpPain(part) { painDraft[part] = ((painDraft[part] || 0) + 1) % 3; if (!painDraft[part]) delete painDraft[part]; renderBody(); }
+  $('body-svg').addEventListener('click', (e) => { const p = e.target.dataset && e.target.dataset.part; if (p) bumpPain(p); });
+  $('body-parts').addEventListener('click', (e) => { const b = e.target.closest('[data-part]'); if (b) bumpPain(b.dataset.part); });
+  $('pain-save').addEventListener('click', async () => {
+    if (!serverV2()) { toast('데이터 서버(Code.gs)를 새 버전으로 바꾼 뒤 저장할 수 있습니다'); return; }
+    const btn = $('pain-save'); btn.disabled = true; btn.textContent = '저장 중…';
+    try { await addToToday({ pain: painString(painDraft) }); painDraft = null; toast('오늘 몸 상태를 저장했습니다'); }
+    catch (err) { toast(errMsg(err)); }
+    renderBody();
+  });
+
+  function routeSvg(points) {
+    if (!points || points.length < 2) return '<span class="shoe">👟</span>';
+    const lat0 = points[0][0] * Math.PI / 180, xs = points.map((p) => p[1] * Math.cos(lat0)), ys = points.map((p) => -p[0]);
+    const minX = Math.min(...xs), minY = Math.min(...ys), span = Math.max(Math.max(...xs) - minX, Math.max(...ys) - minY) || 1;
+    const offX = (span - (Math.max(...xs) - minX)) / 2, offY = (span - (Math.max(...ys) - minY)) / 2;
+    const d = xs.map((x, i) => (i ? 'L' : 'M') + (4 + (x - minX + offX) / span * 38).toFixed(1) + ' ' + (4 + (ys[i] - minY + offY) / span * 38).toFixed(1)).join('');
+    return '<svg viewBox="0 0 46 46"><path d="' + d + '" fill="none" stroke="var(--run)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  function renderRunActs() {
+    const days = state.records.filter((r) => r.run_km > 0).slice(-8).reverse();
+    if (!days.length) { $('run-acts').innerHTML = '<p class="empty">아직 러닝 기록이 없습니다. 위의 [러닝 시작]을 눌러 첫 기록을 남겨 보세요.</p>'; return; }
+    $('run-acts').innerHTML = days.map((r) => {
+      const gps = (state.runs || []).filter((x) => x.date === r.date);
+      const g = gps[gps.length - 1];
+      const total = Number(r.run_km), main = g ? Number(g.km) : total;
+      const sub = g ? fmtTime((g.duration_s || 0) * 1000) + ' · ' + esc(g.pace) + '/km' + (g.kcal ? ' · ' + g.kcal + 'kcal' : '') +
+        (Math.abs(total - main) >= 0.01 ? ' · 하루 합계 ' + total.toFixed(2) + 'km' : '') : '워치·직접 입력';
+      return '<div class="act"><div class="route">' + routeSvg(g && g.points) + '</div><div><div class="t">' + esc(prettyDate(r.date)) + (g && g.started_at ? ' ' + esc(g.started_at) : '') + '</div>' +
+        '<div class="main">' + main.toFixed(2) + ' km</div><div class="t">' + sub + '</div></div></div>';
+    }).join('');
+  }
+  function renderPRs() {
+    const runDays = state.records.filter((r) => r.run_km > 0);
+    const gps = (state.runs || []).filter((r) => r.km > 0 && r.duration_s > 0);
+    const longest = runDays.reduce((b, r) => (!b || r.run_km > b.run_km ? r : b), null);
+    const fast = gps.filter((r) => r.km >= 1).reduce((b, r) => (!b || r.duration_s / r.km < b.duration_s / b.km ? r : b), null);
+    const year = todayStr().slice(0, 4);
+    const yearKm = runDays.filter((r) => r.date.startsWith(year)).reduce((a, r) => a + r.run_km, 0);
+    const tile = (k, v, d) => '<div class="pr"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="d">' + d + '</div></div>';
+    $('run-prs').innerHTML =
+      tile('가장 긴 거리', longest ? Number(longest.run_km).toFixed(2) + '<small> km</small>' : '–', longest ? esc(prettyDate(longest.date)) : '기록 없음') +
+      tile('가장 빠른 페이스', fast ? fmtPace(fast.duration_s * 1000, fast.km) + '<small> /km</small>' : '–', fast ? esc(prettyDate(fast.date)) + ' · GPS ' + fast.km + 'km' : 'GPS로 1km 이상 뛰면 나와요') +
+      tile(year + '년 누적', yearKm.toFixed(1) + '<small> km</small>', runDays.filter((r) => r.date.startsWith(year)).length + '일 뛰었어요') +
+      tile('GPS 러닝', gps.length + '<small> 회</small>', gps.length ? '평균 ' + (gps.reduce((a, r) => a + r.km, 0) / gps.length).toFixed(1) + 'km' : '앱으로 뛴 기록');
+  }
+  function renderRunTab() { renderRunHero(); renderRunGate(); renderRunActs(); renderBody(); renderPRs(); }
+
+  // ───── 진료용 요약 ─────
+  function reportRows() {
+    const intake = dailyIntake(), from = todayStr(-29), out = [];
+    for (let d = todayStr(); d >= from; d = shiftDate(d, -1)) {
+      const r = recOf(d) || {}, it = intake[d];
+      if (!r.date && !it) continue;
+      out.push({ date: d, bp: r.systolic != null ? r.systolic + '/' + r.diastolic : '', pulse: r.pulse ?? '', weight: r.weight_kg ?? '',
+        run: r.run_km || '', sodium: it ? Math.round(it.sodium) : '', pain: (r.pain || '').replace(/:1/g, '(뻐근)').replace(/:2/g, '(아픔)'), memo: r.memo || '' });
+    }
+    return out;
+  }
+  $('rep-print').addEventListener('click', () => {
+    const rows = reportRows();
+    const bps = rows.filter((r) => r.bp).map((r) => r.bp.split('/').map(Number));
+    const avg = bps.length ? Math.round(bps.reduce((a, b) => a + b[0], 0) / bps.length) + '/' + Math.round(bps.reduce((a, b) => a + b[1], 0) / bps.length) : '–';
+    const ws = rows.filter((r) => r.weight !== '').map((r) => Number(r.weight));
+    $('report').innerHTML = '<h1>혈압 관리 기록 요약</h1><div>' + esc(todayStr(-29)) + ' ~ ' + esc(todayStr()) + ' · 평균 혈압 ' + avg + ' (' + bps.length + '회 측정)' +
+      (ws.length > 1 ? ' · 체중 ' + ws[ws.length - 1] + ' → ' + ws[0] + 'kg' : '') + ' · 러닝 합계 ' + rows.reduce((a, r) => a + (Number(r.run) || 0), 0).toFixed(1) + 'km</div>' +
+      '<table><thead><tr><th>날짜</th><th>혈압</th><th>맥박</th><th>체중</th><th>러닝 km</th><th>나트륨 mg</th><th>통증</th><th>메모</th></tr></thead><tbody>' +
+      rows.map((r) => '<tr><td>' + esc(r.date) + '</td><td>' + esc(r.bp) + '</td><td>' + esc(r.pulse) + '</td><td>' + esc(r.weight) + '</td><td>' + esc(r.run) + '</td><td>' + esc(r.sodium) + '</td><td>' + esc(r.pain) + '</td><td class="memo">' + esc(r.memo) + '</td></tr>').join('') +
+      '</tbody></table><p style="font-size:10px;color:#666">가정에서 측정한 기록입니다. 나트륨은 음식별 평균 추정치입니다.</p>';
+    window.print();
+  });
+  $('rep-csv').addEventListener('click', () => {
+    const rows = reportRows().reverse();
+    const q = (v) => '"' + String(v).replace(/"/g, '""') + '"';
+    const csv = '﻿' + ['날짜,혈압,맥박,체중kg,러닝km,나트륨mg,통증,메모'].concat(rows.map((r) => [r.date, r.bp, r.pulse, r.weight, r.run, r.sodium, r.pain, r.memo].map(q).join(','))).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = '혈압기록_' + todayStr() + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  });
 
   // ───── 카톡 알림 설정 ─────
   const NOTIFY_LABELS = { morning: ['아침 8시 혈압 알림', '혈압 잴 시간과 지난 기록을 보내 드려요'],
@@ -1261,6 +1584,7 @@
     if (typing) { renderRecent(); renderTodayStrip(); renderMealDay(); } else setDate(state.date || todayStr());
     renderFoodTab(); renderCourseChips();
     if (state.tab === 'trend') { renderStats(); renderCharts(); }
+    if (state.tab === 'run') renderRunTab();
     $('datepick').style.visibility = state.tab === 'record' || state.tab === 'meal' ? 'visible' : 'hidden';
   }
   (async function init() {
@@ -1269,7 +1593,7 @@
       return;
     }
     state.meal = defaultMeal();
-    const startTab = ['record', 'meal', 'trend', 'food'].includes(CFG.tab) ? CFG.tab : 'record';
+    const startTab = ['record', 'run', 'meal', 'trend', 'food'].includes(CFG.tab) ? CFG.tab : 'record';
     const cached = loadCache();
     let shown = false;
     if (cached && cached.records) {

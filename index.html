@@ -286,25 +286,25 @@
   /* 알림 설정 */
   .bell { width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--hair); background: var(--surface); display: grid; place-items: center; margin-left: auto; margin-right: 8px; }
   .bell[hidden] { display: none; }
-  .kmrow { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
-  .kmrow input { flex: 1; min-width: 0; height: 44px; border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; font-size: 17px; background: var(--card); color: var(--ink); }
+  .kmrow { display: flex; gap: 8px; margin-top: 12px; width: 100%; flex-basis: 100%; align-items: center; }
+  .kmrow input { flex: 1; min-width: 0; height: 44px; border: 1px solid var(--hair); border-radius: 12px; padding: 0 12px; font-size: 17px; background: var(--surface); color: var(--ink); }
   .kmrow button { height: 44px; padding: 0 18px; border-radius: 12px; background: var(--run); color: #fff; font-weight: 700; }
-  .coach .prog { position: relative; height: 10px; border-radius: 6px; background: var(--line); margin: 14px 0 6px; overflow: hidden; }
+  .coach .prog { position: relative; height: 10px; border-radius: 6px; background: var(--hair); margin: 14px 0 6px; overflow: hidden; }
   .coach .prog i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: var(--run); }
-  .coach .ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+  .coach .ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--mute); }
   .coach .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
-  .coach .grid div { background: var(--soft, rgba(127,127,127,.08)); border-radius: 12px; padding: 10px; }
-  .coach .grid .k { font-size: 12px; color: var(--muted); }
+  .coach .grid > div { background: var(--panel); border-radius: 12px; padding: 10px; }
+  .coach .grid .k { font-size: 12px; color: var(--mute); }
   .coach .grid .v { font-size: 20px; font-weight: 800; }
-  .coach .grid .v small { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .coach .grid .v small { font-size: 12px; font-weight: 600; color: var(--mute); }
   .coach .tip { border-left: 3px solid var(--run); padding: 8px 12px; margin: 8px 0; font-size: 14px; line-height: 1.5; }
   .coach .tip b { display: block; }
   .coach .warn { border-left-color: var(--amber); }
   .goalform { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-  .goalform label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
-  .goalform input { height: 44px; border: 1px solid var(--line); border-radius: 12px; padding: 0 10px; font-size: 16px; background: var(--card); color: var(--ink); }
+  .goalform label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--mute); }
+  .goalform input { height: 44px; border: 1px solid var(--hair); border-radius: 12px; padding: 0 10px; font-size: 16px; background: var(--surface); color: var(--ink); }
   .goalform .btns { grid-column: 1 / -1; display: flex; gap: 8px; }
-  .goalform .btns button { flex: 1; height: 44px; border-radius: 12px; font-weight: 700; border: 1px solid var(--line); }
+  .goalform .btns button { flex: 1; height: 44px; border-radius: 12px; font-weight: 700; border: 1px solid var(--hair); }
   .goalform .btns .ok { background: var(--run); color: #fff; border: 0; }
   .bell svg { width: 20px; height: 20px; fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--hair); font-size: 16px; }
@@ -1390,9 +1390,14 @@
     const deficit = rate * 7700;                               // 1kg ≈ 7,700kcal
     let weekKm = Math.round(deficit * 0.4 / now * 2) / 2;      // 러닝 1km ≈ 체중(kg)만큼 kcal
     weekKm = Math.max(5, Math.min(40, weekKm));
+    // 갑자기 늘리면 다치기 쉬우니 지난 4주 평균의 1.1배(최소 10km)까지만 올립니다
+    const mon = mondayOf(today); let past = 0;
+    for (let i = 1; i <= 28; i++) past += dayKm(shiftDate(mon, -i));
+    const ramp = Math.max(10, Math.round(past / 4 * 1.1 * 2) / 2);
+    const planKm = weekKm; weekKm = Math.min(weekKm, ramp);
     const foodKcal = Math.round(deficit * 0.6 / 7 / 10) * 10;  // 하루 덜 먹을 양
     const safeDate = shiftDate(today, Math.ceil(left / safe * 7));
-    return { g, now, left, pct, days, rate, tooFast, weekKm, foodKcal, safeDate, cur };
+    return { g, now, left, pct, days, rate, tooFast, weekKm, planKm, foodKcal, safeDate, cur };
   }
 
   function renderCoach() {
@@ -1419,10 +1424,11 @@
     else if (dayKm(todayStr()) > 0) today = { t: '오늘 러닝 완료 👍', d: '이번 주 남은 거리는 ' + restKm.toFixed(1) + 'km예요. 내일은 쉬거나 가볍게 걸어도 좋아요.' };
     else if (restKm <= 0) today = { t: '이번 주 목표 달성!', d: '오늘은 쉬거나 가볍게 걸으세요. 쉬는 날도 운동의 일부예요.' };
     else {
-      const km = Math.max(2, Math.min(10, Math.round(restKm / Math.max(1, Math.ceil(daysLeft / 2)) * 2) / 2));
+      const km = Math.max(2, Math.min(8, Math.round(restKm / Math.max(1, Math.ceil(daysLeft / 2)) * 2) / 2));
       today = { t: '오늘 ' + km + 'km 천천히 달리기', d: '옆 사람과 대화할 수 있는 속도로 뛰세요. 이번 주 남은 거리 ' + restKm.toFixed(1) + 'km.' };
     }
     $('coach').innerHTML = '<div class="coach">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px"><span>목표일 <b>' + esc(prettyDate(g.target_date)) + '</b></span><button id="g-edit" style="color:var(--teal);font-weight:700">목표 바꾸기 ›</button></div>' +
       '<div class="prog"><i style="width:' + (p.pct * 100).toFixed(0) + '%"></i></div>' +
       '<div class="ends"><span>시작 ' + Number(g.start_kg).toFixed(1) + 'kg</span><span>지금 <b style="color:var(--ink)">' + p.now.toFixed(1) + 'kg</b></span><span>목표 ' + Number(g.target_kg).toFixed(1) + 'kg</span></div>' +
       (p.done ? '' : '<div class="grid"><div><div class="k">남은 체중</div><div class="v">' + p.left.toFixed(1) + '<small> kg</small></div></div>' +
@@ -1430,11 +1436,11 @@
         '<div><div class="k">주당 감량</div><div class="v">' + p.rate.toFixed(1) + '<small> kg</small></div></div></div>') +
       '<div class="tip' + (today.warn ? ' warn' : '') + '"><b>' + esc(today.t) + '</b>' + esc(today.d) + '</div>' +
       (p.done ? '' :
-        '<div class="tip"><b>이번 주 러닝 ' + p.weekKm + 'km</b>지금까지 ' + doneKm.toFixed(1) + 'km. 위 링의 주간 목표도 이 거리로 맞췄어요.</div>' +
+        '<div class="tip"><b>이번 주 러닝 ' + p.weekKm + 'km</b>지금까지 ' + doneKm.toFixed(1) + 'km. 위 링의 주간 목표도 이 거리로 맞췄어요.' +
+          (p.planKm > p.weekKm ? ' 목표대로라면 주 ' + p.planKm + 'km가 필요하지만, 다치지 않게 매주 조금씩(10%) 늘려 갈게요.' : '') + '</div>' +
         '<div class="tip"><b>하루 ' + p.foodKcal + 'kcal 덜 먹기</b>밥 1/3공기(약 100kcal)나 국물·간식을 줄이면 돼요. 감량의 60%는 식사, 40%는 러닝 몫이에요.</div>') +
       (p.tooFast ? '<div class="tip warn"><b>목표가 조금 빨라요</b>건강하게 빼려면 주 ' + p.rate.toFixed(1) + 'kg 이하가 좋아요. 이 속도면 ' + esc(prettyDate(p.safeDate)) + ' 무렵 도착해요. 코치는 안전한 속도로 계산했어요.</div>' : '') +
       (!p.cur ? '<div class="tip warn"><b>체중을 기록해 주세요</b>기록 탭에 체중을 적으면 진행률이 자동으로 바뀌어요.</div>' : '') +
-      '<p class="sub">' + esc(prettyDate(g.target_date)) + '까지 · <button id="g-edit" style="color:var(--teal);font-weight:600">목표 바꾸기</button></p>' +
       '<p class="sub" style="font-size:12px">계산은 일반적인 추정치(1kg≈7,700kcal, 1km≈체중만큼 kcal)예요. 혈압약을 드시면 운동량 변화는 의사와 상의하세요.</p></div>';
   }
   $('coach').addEventListener('click', async (e) => {

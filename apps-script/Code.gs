@@ -19,7 +19,7 @@ const CONFIG = {
   // 1행 제목(영문 키). 나중에 데이터베이스로 옮길 때 이 이름이 그대로 칸 이름이 됩니다.
   RECORD_COLUMNS: ['date', 'systolic', 'diastolic', 'pulse', 'weight_kg', 'run_km', 'memo', 'updated_at', 'pain'],
   PAIN_PARTS: ['허리', '골반', '허벅지', '무릎', '종아리', '발목'], // 통증 체크 부위
-  VERSION: 2, // 화면이 이 값을 보고 서버가 새 기능을 지원하는지 확인합니다
+  VERSION: 3, // 화면이 이 값을 보고 서버가 새 기능을 지원하는지 확인합니다 (3: 목표 체중)
   MEAL_COLUMNS: ['id', 'date', 'meal', 'food', 'matched', 'qty', 'unit', 'kcal', 'sodium_mg', 'source', 'created_at'],
   CUSTOM_FOOD_COLUMNS: ['name', 'unit', 'kcal', 'sodium_mg', 'updated_at'],
   RESTAURANT_COLUMNS: ['id', 'name', 'category', 'address', 'phone', 'tip', 'link', 'created_at'],
@@ -91,7 +91,7 @@ const API_FUNCS = {
   apiSaveRestaurant: apiSaveRestaurant, apiDeleteRestaurant: apiDeleteRestaurant,
   apiAddPlace: apiAddPlace, apiDeletePlace: apiDeletePlace, apiSearchRestaurants: apiSearchRestaurants,
   apiSaveCourse: apiSaveCourse, apiDeleteCourse: apiDeleteCourse, apiWalkSegment: apiWalkSegment,
-  apiSaveRun: apiSaveRun, apiDeleteRun: apiDeleteRun,
+  apiSaveRun: apiSaveRun, apiDeleteRun: apiDeleteRun, apiSetGoal: apiSetGoal,
   apiSetNotify: apiSetNotify, apiSendTest: apiSendTest, apiUnlinkKakao: apiUnlinkKakao,
 };
 
@@ -131,6 +131,7 @@ function apiGetData() {
       hasKakaoKey: !!props.getProperty('KAKAO_REST_KEY'),
       center: CONFIG.DEFAULT_CENTER,
       version: CONFIG.VERSION,
+      goal: getGoal_(),
       kakao: kakaoStatus_(),
     },
     themes: LOW_SALT_THEMES.map(function (t) { return { key: t.key, label: t.label }; }),
@@ -318,6 +319,28 @@ function runsForApp_() {
     }
     return out;
   });
+}
+
+/**
+ * 목표 체중을 저장합니다. input: { target_kg, target_date, start_kg }  (null이면 목표 지우기)
+ * 러닝 탭의 코치가 이 목표를 기준으로 주간 거리와 식사량을 안내합니다.
+ */
+function apiSetGoal(input) {
+  const props = PropertiesService.getScriptProperties();
+  if (!input) { props.deleteProperty('GOAL'); return null; }
+  const target = num_(input.target_kg, 30, 250, '목표 체중');
+  const start = num_(input.start_kg, 30, 300, '시작 체중');
+  const date = String(input.target_date || '').trim();
+  if (target === '' || start === '') throw new Error('목표 체중을 입력해 주세요.');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('목표 날짜를 확인해 주세요.');
+  if (date <= seoulDate_(0)) throw new Error('목표 날짜는 오늘 이후여야 합니다.');
+  const goal = { target_kg: target, start_kg: start, target_date: date, start_date: String(input.start_date || seoulDate_(0)).slice(0, 10) };
+  props.setProperty('GOAL', JSON.stringify(goal));
+  return goal;
+}
+
+function getGoal_() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('GOAL') || 'null'); } catch (e) { return null; }
 }
 
 /** 그날 기록의 run_km에 거리를 더하거나 뺍니다 (다른 값은 그대로). */

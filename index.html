@@ -89,6 +89,7 @@
   .strip { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 14px 0 0; }
   .strip .k { font-size: 13px; color: var(--mute); }
   .strip b { font-size: 17px; }
+  .strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 10px; }
   .strip .go { margin-left: auto; color: var(--teal); font-size: 14px; font-weight: 600; }
   .meter { height: 6px; border-radius: 99px; background: var(--hair); overflow: hidden; margin-top: 4px; width: 110px; }
   .meter > i { display: block; height: 100%; border-radius: 99px; }
@@ -284,6 +285,27 @@
 
   /* 알림 설정 */
   .bell { width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--hair); background: var(--surface); display: grid; place-items: center; margin-left: auto; margin-right: 8px; }
+  .bell[hidden] { display: none; }
+  .kmrow { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
+  .kmrow input { flex: 1; min-width: 0; height: 44px; border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; font-size: 17px; background: var(--card); color: var(--ink); }
+  .kmrow button { height: 44px; padding: 0 18px; border-radius: 12px; background: var(--run); color: #fff; font-weight: 700; }
+  .coach .prog { position: relative; height: 10px; border-radius: 6px; background: var(--line); margin: 14px 0 6px; overflow: hidden; }
+  .coach .prog i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: var(--run); }
+  .coach .ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+  .coach .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+  .coach .grid div { background: var(--soft, rgba(127,127,127,.08)); border-radius: 12px; padding: 10px; }
+  .coach .grid .k { font-size: 12px; color: var(--muted); }
+  .coach .grid .v { font-size: 20px; font-weight: 800; }
+  .coach .grid .v small { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .coach .tip { border-left: 3px solid var(--run); padding: 8px 12px; margin: 8px 0; font-size: 14px; line-height: 1.5; }
+  .coach .tip b { display: block; }
+  .coach .warn { border-left-color: var(--amber); }
+  .goalform { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .goalform label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+  .goalform input { height: 44px; border: 1px solid var(--line); border-radius: 12px; padding: 0 10px; font-size: 16px; background: var(--card); color: var(--ink); }
+  .goalform .btns { grid-column: 1 / -1; display: flex; gap: 8px; }
+  .goalform .btns button { flex: 1; height: 44px; border-radius: 12px; font-weight: 700; border: 1px solid var(--line); }
+  .goalform .btns .ok { background: var(--run); color: #fff; border: 0; }
   .bell svg { width: 20px; height: 20px; fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--hair); font-size: 16px; }
   .switch input { width: 46px; height: 28px; appearance: none; -webkit-appearance: none; background: var(--hair); border-radius: 99px; position: relative; flex: none; cursor: pointer; transition: background .15s; }
@@ -317,7 +339,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>혈압 관리<span class="sync" id="sync" hidden>새로 고치는 중…</span></h1>
+  <h1><span id="page-title">혈압 관리</span><span class="sync" id="sync" hidden>새로 고치는 중…</span></h1>
   <button class="bell" id="open-settings" aria-label="카톡 알림 설정"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4l2-2Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></button>
   <div class="datepick" id="datepick" style="visibility:hidden">
     <button id="d-prev" aria-label="전날">‹</button>
@@ -338,11 +360,9 @@
         <label class="mrow"><span class="mlab">맥박</span><input id="f-pulse" class="mnum" type="number" inputmode="numeric" placeholder="--"><span class="munit">회/분</span></label>
       </div>
       <div class="fields">
-        <label class="fld"><span>체중</span><input id="f-weight" type="number" inputmode="decimal" step="0.1" placeholder="0.0"><em>kg</em></label>
-        <label class="fld"><span>러닝</span><input id="f-run" type="number" inputmode="decimal" step="0.1" placeholder="0"><em>km</em></label>
+        <label class="fld wide"><span>체중</span><input id="f-weight" type="number" inputmode="decimal" step="0.1" placeholder="0.0"><em>kg</em></label>
         <label class="fld wide"><span>메모</span><input id="f-memo" type="text" placeholder="잠 설침, 약 먹음 등"></label>
       </div>
-      <div class="courses" id="course-chips"></div>
       <button class="primary" id="btn-save">저장</button>
       <div id="bp-alert"></div>
       <button class="strip" id="today-strip"></button>
@@ -362,6 +382,10 @@
       <div id="run-gate"></div>
       <button class="startbtn" id="run-start"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg>러닝 시작</button>
       <div class="quick" id="run-quick"></div>
+    </section>
+    <section class="block">
+      <h2>체중 목표 · 코치</h2>
+      <div id="coach"></div>
     </section>
     <section class="block">
       <h2>최근 러닝</h2>
@@ -594,11 +618,14 @@
 
   // ───── 탭 · 날짜 ─────
   document.querySelectorAll('nav button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  const TAB_TITLES = { record: '혈압 관리', run: '러닝', meal: '식사', trend: '추이', food: '주변 식당' };
   function showTab(name) {
     state.tab = name;
     document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
     document.querySelectorAll('.tab').forEach((s) => s.classList.toggle('on', s.id === 'tab-' + name));
     $('datepick').style.visibility = name === 'record' || name === 'meal' ? 'visible' : 'hidden';
+    $('page-title').textContent = TAB_TITLES[name] || '혈압 관리';
+    $('open-settings').hidden = name !== 'record';
     if (name === 'trend') { renderStats(); renderCharts(); }
     if (name === 'run') renderRunTab();
     if (name === 'food' && !state.searched) autoSearch();
@@ -617,13 +644,16 @@
   function fillForm() {
     const r = state.records.find((x) => x.date === state.date) || {};
     $('f-sys').value = r.systolic ?? ''; $('f-dia').value = r.diastolic ?? ''; $('f-pulse').value = r.pulse ?? '';
-    $('f-weight').value = r.weight_kg ?? ''; $('f-run').value = r.run_km ?? ''; $('f-memo').value = r.memo || '';
+    $('f-weight').value = r.weight_kg ?? ''; $('f-memo').value = r.memo || '';
     $('bp-alert').innerHTML = '';
   }
   $('btn-save').addEventListener('click', async () => {
     const btn = $('btn-save'); btn.disabled = true; btn.textContent = '저장 중…';
     const rec = { date: state.date, systolic: val('f-sys'), diastolic: val('f-dia'), pulse: val('f-pulse'),
-      weight_kg: val('f-weight'), run_km: val('f-run'), memo: val('f-memo') };
+      weight_kg: val('f-weight'), memo: val('f-memo') };
+    // 러닝 거리와 몸 상태는 러닝 탭에서 관리하므로 그대로 둡니다
+    const prev = state.records.find((x) => x.date === state.date) || {};
+    rec.run_km = prev.run_km ?? ''; rec.pain = prev.pain || '';
     try {
       state.records = await call('apiSaveRecord', rec);
       renderRecent(); toast('저장했습니다');
@@ -645,27 +675,35 @@
     return map;
   }
   function renderTodayStrip() {
-    const it = dailyIntake()[state.date];
-    $('today-strip').innerHTML = it
-      ? '<span><span class="k">먹은 것</span><br><b>' + fmtN(it.kcal) + '</b> kcal</span>' +
-        '<span><span class="k">나트륨</span><br><b style="color:' + sodiumColor(it.sodium) + '">' + fmtN(it.sodium) + '</b> mg' +
-        '<div class="meter"><i style="width:' + Math.min(100, it.sodium / SODIUM_GOAL * 100) + '%;background:' + sodiumColor(it.sodium) + '"></i></div></span>' +
-        '<span class="go">식사 보기</span>'
-      : '<span class="k">이 날 식사 기록이 없습니다.</span><span class="go">식사 적기</span>';
+    const it = dailyIntake()[state.date], r = state.records.find((x) => x.date === state.date) || {};
+    const pain = Object.entries(parsePain(r.pain)).map(([p, l]) => p + (l === 2 ? '(아픔)' : '(뻐근)')).join(' ');
+    const cell = (k, v, extra) => '<span data-go="' + (/러닝|몸/.test(k) ? 'run' : 'meal') + '"><span class="k">' + k + '</span><br>' + v + (extra || '') + '</span>';
+    $('today-strip').innerHTML =
+      cell('먹은 것', it ? '<b>' + fmtN(it.kcal) + '</b> kcal' : '<b>–</b>') +
+      cell('나트륨', it ? '<b style="color:' + sodiumColor(it.sodium) + '">' + fmtN(it.sodium) + '</b> mg' : '<b>–</b>',
+        it ? '<div class="meter"><i style="width:' + Math.min(100, it.sodium / SODIUM_GOAL * 100) + '%;background:' + sodiumColor(it.sodium) + '"></i></div>' : '') +
+      cell('러닝', r.run_km ? '<b>' + Number(r.run_km).toFixed(1) + '</b> km' : '<b>–</b>') +
+      (pain ? cell('몸 상태', '<b style="font-size:14px;color:var(--amber)">' + esc(pain) + '</b>') : '');
   }
-  $('today-strip').addEventListener('click', () => showTab('meal'));
+  $('today-strip').addEventListener('click', (e) => { const c = e.target.closest('[data-go]'); showTab(c ? c.dataset.go : 'meal'); });
 
   function renderRecent() {
-    const list = state.records.slice(-(state.showAll ? 60 : 7)).reverse();
+    const intake = dailyIntake();
+    const dates = Array.from(new Set(state.records.map((r) => r.date).concat(Object.keys(intake)))).sort().reverse();
+    const list = dates.slice(0, state.showAll ? 60 : 7);
     if (!list.length) { $('recent').innerHTML = '<p class="empty">아직 기록이 없습니다. 위에 오늘 혈압을 적고 저장해 보세요.</p>'; return; }
-    $('recent').innerHTML = '<table><thead><tr><th>날짜</th><th>혈압</th><th class="num">체중</th><th class="num">러닝</th></tr></thead><tbody>' +
-      list.map((r) => '<tr class="row' + (r.date === state.date ? ' on' : '') + '" data-date="' + esc(r.date) + '">' +
-        '<td>' + esc(r.date.slice(5).replace('-', '.')) + '</td>' +
-        '<td class="bp">' + (r.systolic !== null ? r.systolic + '/' + r.diastolic : '–') + '</td>' +
-        '<td class="num">' + (r.weight_kg !== null ? r.weight_kg.toFixed(1) : '–') + '</td>' +
-        '<td class="num">' + (r.run_km ? r.run_km : '–') + '</td></tr>').join('') +
-      '</tbody></table>' + (state.records.length > 7 ? '<button id="more" class="sub" style="color:var(--teal);font-weight:600">' + (state.showAll ? '접기' : '더 보기') + '</button>' : '') +
-      '<p class="sub">줄을 누르면 그 날짜로 이동해 고칠 수 있습니다. ' +
+    $('recent').innerHTML = '<table><thead><tr><th>날짜</th><th>혈압</th><th class="num">체중</th><th class="num">러닝</th><th class="num">나트륨</th></tr></thead><tbody>' +
+      list.map((d) => {
+        const r = state.records.find((x) => x.date === d) || {}, it = intake[d];
+        return '<tr class="row' + (d === state.date ? ' on' : '') + '" data-date="' + esc(d) + '">' +
+          '<td>' + esc(d.slice(5).replace('-', '.')) + (r.pain ? ' <span title="통증" style="color:var(--amber)">●</span>' : '') + '</td>' +
+          '<td class="bp">' + (r.systolic != null ? r.systolic + '/' + r.diastolic : '–') + '</td>' +
+          '<td class="num">' + (r.weight_kg != null ? Number(r.weight_kg).toFixed(1) : '–') + '</td>' +
+          '<td class="num">' + (r.run_km ? Number(r.run_km).toFixed(1) : '–') + '</td>' +
+          '<td class="num"' + (it ? ' style="color:' + sodiumColor(it.sodium) + '"' : '') + '>' + (it ? fmtN(it.sodium) : '–') + '</td></tr>';
+      }).join('') +
+      '</tbody></table>' + (dates.length > 7 ? '<button id="more" class="sub" style="color:var(--teal);font-weight:600">' + (state.showAll ? '접기' : '더 보기') + '</button>' : '') +
+      '<p class="sub">줄을 누르면 그 날짜로 이동해 고칠 수 있습니다. 러닝·몸 상태는 러닝 탭, 식사는 식사 탭에서 고칩니다. ' +
       (state.records.some((r) => r.date === state.date) ? '<button id="del-day" style="color:var(--red);font-size:13px;text-decoration:underline">' + esc(prettyDate(state.date)) + ' 기록 삭제</button>' : '') + '</p>';
   }
   $('recent').addEventListener('click', async (e) => {
@@ -1035,22 +1073,8 @@
   });
 
   // ───── 러닝 코스 ─────
-  function renderCourseChips() {
-    $('course-chips').innerHTML = '<span class="lab">내 코스</span>' +
-      state.courses.map((c) => '<button class="cchip" data-course="' + esc(c.id) + '">' + esc(c.name) + ' <b>' + c.km + 'km</b></button>').join('') +
-      '<button class="cchip add" id="open-course">＋ 코스 만들기</button>';
-  }
-  $('course-chips').addEventListener('click', (e) => {
-    const btn = e.target.closest('button'); if (!btn) return;
-    if (btn.id === 'open-course') { openCoursePanel(); return; }
-    if (btn.id === 'open-run') { openRunPanel(); return; }
-    const c = state.courses.find((x) => x.id === btn.dataset.course); if (!c) return;
-    const now = Number($('f-run').value) || 0;
-    $('f-run').value = Math.round((now + c.km) * 100) / 100;
-    toast(c.name + ' +' + c.km + 'km (저장을 눌러야 기록됩니다)');
-  });
+  function renderCourseChips() { if (state.tab === 'run') renderRunGate(); }
 
-  // 코스 = 누른 점들(taps)과 점 사이 구간(segs: 길 따라 얻은 경로와 거리)
   const course = { map: null, line: null, markers: [], taps: [], segs: [], editing: null, busy: false };
   function loadLeaflet() {
     if (window.L) return Promise.resolve();
@@ -1334,7 +1358,111 @@
   const PAIN_PARTS = ['허리', '골반', '허벅지', '무릎', '종아리', '발목'];
   const PAIN_LV = ['없음', '뻐근함', '아픔'];
   const GOAL_KEY = 'bp_run_goal';
-  function runGoal() { try { return Number(localStorage.getItem(GOAL_KEY)) || 15; } catch (_) { return 15; } }
+  function runGoal() { const p = coachPlan(); if (p && p.weekKm) return p.weekKm; try { return Number(localStorage.getItem(GOAL_KEY)) || 15; } catch (_) { return 15; } }
+  function manualRunGoal() { try { return Number(localStorage.getItem(GOAL_KEY)) || 15; } catch (_) { return 15; } }
+
+  // ───── 체중 목표 · 코치 ─────
+  const WGOAL_KEY = 'bp_weight_goal';
+  function weightGoal() {
+    const g = state.settings && state.settings.goal;
+    if (g) return g;
+    try { return JSON.parse(localStorage.getItem(WGOAL_KEY) || 'null'); } catch (_) { return null; }
+  }
+  function latestWeight() {
+    const r = state.records.filter((x) => x.weight_kg != null && x.weight_kg !== '').sort((a, b) => a.date < b.date ? 1 : -1)[0];
+    return r ? { kg: Number(r.weight_kg), date: r.date } : null;
+  }
+  function daysBetween(a, b) { const p = (d) => { const [y, m, dd] = d.split('-').map(Number); return Date.UTC(y, m - 1, dd); }; return Math.round((p(b) - p(a)) / 86400000); }
+  // 목표 체중·날짜로 이번 주 해야 할 운동량을 계산합니다
+  function coachPlan() {
+    const g = weightGoal(); if (!g) return null;
+    const cur = latestWeight(), now = cur ? cur.kg : Number(g.start_kg);
+    const today = todayStr(), days = daysBetween(today, g.target_date);
+    const left = Math.round((now - g.target_kg) * 10) / 10;
+    const total = Number(g.start_kg) - Number(g.target_kg);
+    const pct = total > 0 ? Math.max(0, Math.min(1, (Number(g.start_kg) - now) / total)) : 1;
+    if (left <= 0) return { g, now, left: 0, pct: 1, done: true, weekKm: Math.max(10, manualRunGoal()) };
+    const weeks = Math.max(1, days / 7);
+    const need = left / weeks;                                 // 일주일에 빼야 하는 kg
+    const safe = Math.min(1, now * 0.01);                      // 안전 상한: 주 1kg 또는 체중 1%
+    const rate = Math.min(need, safe);
+    const tooFast = need > safe + 0.01;
+    const deficit = rate * 7700;                               // 1kg ≈ 7,700kcal
+    let weekKm = Math.round(deficit * 0.4 / now * 2) / 2;      // 러닝 1km ≈ 체중(kg)만큼 kcal
+    weekKm = Math.max(5, Math.min(40, weekKm));
+    const foodKcal = Math.round(deficit * 0.6 / 7 / 10) * 10;  // 하루 덜 먹을 양
+    const safeDate = shiftDate(today, Math.ceil(left / safe * 7));
+    return { g, now, left, pct, days, rate, tooFast, weekKm, foodKcal, safeDate, cur };
+  }
+
+  function renderCoach() {
+    const p = coachPlan(), lw = latestWeight();
+    if (state.editingGoal || !p) {
+      const g = weightGoal() || {};
+      $('coach').innerHTML = (p ? '' : '<p class="sub" style="margin-top:0">목표 체중을 정하면 그 목표에 맞춰 주간 러닝 거리와 하루 식사량을 코치해 드려요.</p>') +
+        '<div class="goalform"><label>' + (p ? '시작 체중' : '지금 체중') + ' (kg)<input id="g-start" type="number" inputmode="decimal" step="0.1" value="' + (p ? g.start_kg : (lw ? lw.kg : '')) + '"></label>' +
+        '<label>목표 체중 (kg)<input id="g-target" type="number" inputmode="decimal" step="0.1" value="' + (g.target_kg || '') + '"></label>' +
+        '<label style="grid-column:1/-1">언제까지<input id="g-date" type="date" value="' + (g.target_date || shiftDate(todayStr(), 90)) + '"></label>' +
+        '<div class="btns">' + (p ? '<button id="g-cancel">취소</button>' : '') + '<button class="ok" id="g-save">목표 저장</button></div></div>' +
+        (p ? '<button id="g-clear" class="sub" style="color:var(--red);text-decoration:underline;margin-top:10px">목표 지우기</button>' : '');
+      return;
+    }
+    const g = p.g, gate = runGate();
+    const weekStart = mondayOf(todayStr());
+    let doneKm = 0; for (let i = 0; i < 7; i++) doneKm += dayKm(shiftDate(weekStart, i));
+    const restKm = Math.max(0, p.weekKm - doneKm);
+    const daysLeft = 7 - ((new Date().getDay() + 6) % 7);
+    let today;
+    if (p.done) today = { t: '🎉 목표 체중에 도달했어요!', d: '지금 운동량을 유지하면서 체중이 다시 오르지 않게 지켜 보세요. 새 목표를 정해도 좋아요.' };
+    else if (gate.level === 'stop') today = { t: '오늘은 운동 쉬기', d: gate.title + ' 혈압이 내려간 뒤에 다시 시작하세요.', warn: 1 };
+    else if (gate.level === 'caution') today = { t: '오늘은 30분 걷기', d: gate.title + ' 뛰는 대신 빠르게 걷기 30분(약 3km)이면 충분해요.', warn: 1 };
+    else if (dayKm(todayStr()) > 0) today = { t: '오늘 러닝 완료 👍', d: '이번 주 남은 거리는 ' + restKm.toFixed(1) + 'km예요. 내일은 쉬거나 가볍게 걸어도 좋아요.' };
+    else if (restKm <= 0) today = { t: '이번 주 목표 달성!', d: '오늘은 쉬거나 가볍게 걸으세요. 쉬는 날도 운동의 일부예요.' };
+    else {
+      const km = Math.max(2, Math.min(10, Math.round(restKm / Math.max(1, Math.ceil(daysLeft / 2)) * 2) / 2));
+      today = { t: '오늘 ' + km + 'km 천천히 달리기', d: '옆 사람과 대화할 수 있는 속도로 뛰세요. 이번 주 남은 거리 ' + restKm.toFixed(1) + 'km.' };
+    }
+    $('coach').innerHTML = '<div class="coach">' +
+      '<div class="prog"><i style="width:' + (p.pct * 100).toFixed(0) + '%"></i></div>' +
+      '<div class="ends"><span>시작 ' + Number(g.start_kg).toFixed(1) + 'kg</span><span>지금 <b style="color:var(--ink)">' + p.now.toFixed(1) + 'kg</b></span><span>목표 ' + Number(g.target_kg).toFixed(1) + 'kg</span></div>' +
+      (p.done ? '' : '<div class="grid"><div><div class="k">남은 체중</div><div class="v">' + p.left.toFixed(1) + '<small> kg</small></div></div>' +
+        '<div><div class="k">남은 기간</div><div class="v">' + Math.max(0, Math.ceil(p.days / 7)) + '<small> 주</small></div></div>' +
+        '<div><div class="k">주당 감량</div><div class="v">' + p.rate.toFixed(1) + '<small> kg</small></div></div></div>') +
+      '<div class="tip' + (today.warn ? ' warn' : '') + '"><b>' + esc(today.t) + '</b>' + esc(today.d) + '</div>' +
+      (p.done ? '' :
+        '<div class="tip"><b>이번 주 러닝 ' + p.weekKm + 'km</b>지금까지 ' + doneKm.toFixed(1) + 'km. 위 링의 주간 목표도 이 거리로 맞췄어요.</div>' +
+        '<div class="tip"><b>하루 ' + p.foodKcal + 'kcal 덜 먹기</b>밥 1/3공기(약 100kcal)나 국물·간식을 줄이면 돼요. 감량의 60%는 식사, 40%는 러닝 몫이에요.</div>') +
+      (p.tooFast ? '<div class="tip warn"><b>목표가 조금 빨라요</b>건강하게 빼려면 주 ' + p.rate.toFixed(1) + 'kg 이하가 좋아요. 이 속도면 ' + esc(prettyDate(p.safeDate)) + ' 무렵 도착해요. 코치는 안전한 속도로 계산했어요.</div>' : '') +
+      (!p.cur ? '<div class="tip warn"><b>체중을 기록해 주세요</b>기록 탭에 체중을 적으면 진행률이 자동으로 바뀌어요.</div>' : '') +
+      '<p class="sub">' + esc(prettyDate(g.target_date)) + '까지 · <button id="g-edit" style="color:var(--teal);font-weight:600">목표 바꾸기</button></p>' +
+      '<p class="sub" style="font-size:12px">계산은 일반적인 추정치(1kg≈7,700kcal, 1km≈체중만큼 kcal)예요. 혈압약을 드시면 운동량 변화는 의사와 상의하세요.</p></div>';
+  }
+  $('coach').addEventListener('click', async (e) => {
+    const id = e.target.id;
+    if (id === 'g-edit') { state.editingGoal = true; renderCoach(); return; }
+    if (id === 'g-cancel') { state.editingGoal = false; renderCoach(); return; }
+    if (id === 'g-clear') {
+      if (!confirm('체중 목표를 지울까요?')) return;
+      try { if (serverV3()) await call('apiSetGoal', null); } catch (err) { toast(errMsg(err)); return; }
+      try { localStorage.removeItem(WGOAL_KEY); } catch (_) {}
+      if (state.settings) state.settings.goal = null;
+      state.editingGoal = false; saveCache(); renderRunTab(); return;
+    }
+    if (id !== 'g-save') return;
+    const start = Number($('g-start').value), target = Number($('g-target').value), date = $('g-date').value;
+    if (!(start >= 30 && start <= 300)) { toast('지금 체중을 적어 주세요'); return; }
+    if (!(target >= 30 && target < start)) { toast('목표 체중은 시작 체중보다 낮게 적어 주세요'); return; }
+    if (!date || date <= todayStr()) { toast('날짜는 오늘 이후로 골라 주세요'); return; }
+    const old = weightGoal();
+    const goal = { start_kg: start, target_kg: target, target_date: date, start_date: old && Number(old.start_kg) === start ? old.start_date : todayStr() };
+    e.target.disabled = true;
+    try {
+      if (serverV3()) { const saved = await call('apiSetGoal', goal); state.settings.goal = saved; }
+      else { try { localStorage.setItem(WGOAL_KEY, JSON.stringify(goal)); } catch (_) {} toast('이 기기에만 저장했어요. Code.gs를 새 버전으로 바꾸면 모든 기기에서 보여요'); }
+      state.editingGoal = false; saveCache(); renderRunTab();
+      if (serverV3()) toast('목표를 저장했어요');
+    } catch (err) { toast(errMsg(err)); e.target.disabled = false; }
+  });
   function recOf(d) { return state.records.find((r) => r.date === d) || null; }
   function dayKm(d) { const r = recOf(d); return (r && r.run_km) || 0; }
   function mondayOf(d) { const [y, m, dd] = d.split('-').map(Number); const t = new Date(y, m - 1, dd); const w = (t.getDay() + 6) % 7; t.setDate(t.getDate() - w); return ymd(t); }
@@ -1343,6 +1471,7 @@
   }
   function painString(o) { return PAIN_PARTS.filter((p) => o[p]).map((p) => p + ':' + o[p]).join(','); }
   function serverV2() { return (state.settings && state.settings.version || 0) >= 2; }
+  function serverV3() { return (state.settings && state.settings.version || 0) >= 3; }
 
   // 오늘 러닝해도 되는지: 혈압 → 통증 순서로 판단합니다
   function runGate() {
@@ -1388,13 +1517,14 @@
       '<div class="side"><div><div class="k">이번 주</div><div class="v">' + Math.round(pct * 100) + '<small>% 달성</small></div></div>' +
       '<div><div class="k">' + Number(month.slice(5)) + '월 누적</div><div class="v">' + monthKm.toFixed(1) + '<small> km</small></div></div>' +
       '<div><div class="k">연속 러닝</div><div class="v">' + streak + '<small>주째</small></div></div>' +
-      '<button class="goal-btn" id="goal-edit">주간 목표 바꾸기</button></div></div>' +
+      '<button class="goal-btn" id="goal-edit">' + (weightGoal() ? '코치가 정한 목표' : '주간 목표 바꾸기') + '</button></div></div>' +
       '<div class="bars">' + week.map((d, i) => '<div class="col' + (d === today ? ' today' : '') + '"><div class="km">' + (kms[i] ? kms[i].toFixed(1) : '') + '</div>' +
         '<div class="bar' + (kms[i] ? ' on' : '') + '" style="height:' + Math.max(4, kms[i] / max * 60) + 'px"></div><div class="d">' + '월화수목금토일'[i] + '</div></div>').join('') + '</div>';
   }
   $('run-hero').addEventListener('click', (e) => {
     if (e.target.id !== 'goal-edit') return;
-    const v = prompt('한 주에 몇 km를 뛸까요?', runGoal());
+    if (weightGoal()) { toast('체중 목표에 맞춰 코치가 정한 거리예요. 아래 [목표 바꾸기]에서 조정하세요'); $('coach').scrollIntoView({ behavior: 'smooth' }); return; }
+    const v = prompt('한 주에 몇 km를 뛸까요?', manualRunGoal());
     const n = Number(v); if (!v || !isFinite(n) || n <= 0 || n > 300) return;
     try { localStorage.setItem(GOAL_KEY, String(Math.round(n * 10) / 10)); } catch (_) {}
     renderRunHero();
@@ -1408,6 +1538,7 @@
       ? '<span class="lab">워치로 뛰었다면 코스로 바로 기록</span>' + state.courses.map((c) => '<button class="cchip" data-qcourse="' + esc(c.id) + '">' + esc(c.name) + ' <b>' + c.km + 'km</b></button>').join('') +
         '<button class="cchip add" id="q-course">＋ 코스</button>'
       : '<button class="cchip add" id="q-course">＋ 자주 뛰는 코스 만들기</button>';
+    $('run-quick').innerHTML += '<div class="kmrow"><input id="q-km" type="number" inputmode="decimal" step="0.1" placeholder="워치로 뛴 거리 (km)"><button id="q-km-add">기록</button></div>';
   }
   $('run-start').addEventListener('click', () => {
     const g = runGate();
@@ -1417,6 +1548,12 @@
   $('run-quick').addEventListener('click', async (e) => {
     const btn = e.target.closest('button'); if (!btn) return;
     if (btn.id === 'q-course') { openCoursePanel(); return; }
+    if (btn.id === 'q-km-add') {
+      const n = Number($('q-km').value);
+      if (!isFinite(n) || n <= 0 || n > 100) { toast('거리를 km로 적어 주세요 (예: 5.2)'); return; }
+      try { await addToToday({ addKm: Math.round(n * 100) / 100 }); toast('오늘 러닝 ' + n + 'km를 더했습니다'); } catch (err) { toast(errMsg(err)); }
+      return;
+    }
     const c = state.courses.find((x) => x.id === btn.dataset.qcourse); if (!c) return;
     if (!confirm('오늘 러닝에 ' + c.name + ' ' + c.km + 'km를 더할까요?')) return;
     try { await addToToday({ addKm: c.km }); toast(c.name + ' ' + c.km + 'km를 기록했습니다'); } catch (err) { toast(errMsg(err)); }
@@ -1497,7 +1634,7 @@
       tile(year + '년 누적', yearKm.toFixed(1) + '<small> km</small>', runDays.filter((r) => r.date.startsWith(year)).length + '일 뛰었어요') +
       tile('GPS 러닝', gps.length + '<small> 회</small>', gps.length ? '평균 ' + (gps.reduce((a, r) => a + r.km, 0) / gps.length).toFixed(1) + 'km' : '앱으로 뛴 기록');
   }
-  function renderRunTab() { renderRunHero(); renderRunGate(); renderRunActs(); renderBody(); renderPRs(); }
+  function renderRunTab() { renderRunHero(); renderRunGate(); renderCoach(); renderRunActs(); renderBody(); renderPRs(); }
 
   // ───── 진료용 요약 ─────
   function reportRows() {
@@ -1578,7 +1715,7 @@
   // ───── 시작 ─────
   // 새 데이터가 와도, 이미 입력 중인 칸은 지우지 않습니다
   let typing = false;
-  ['f-sys', 'f-dia', 'f-pulse', 'f-weight', 'f-run', 'f-memo'].forEach((id) => $(id).addEventListener('input', () => { typing = true; }));
+  ['f-sys', 'f-dia', 'f-pulse', 'f-weight', 'f-memo'].forEach((id) => $(id).addEventListener('input', () => { typing = true; }));
   function renderAll() {
     renderMealSeg();
     if (typing) { renderRecent(); renderTodayStrip(); renderMealDay(); } else setDate(state.date || todayStr());

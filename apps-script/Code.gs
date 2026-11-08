@@ -60,6 +60,7 @@ function doGet(e) {
   const p = (e && e.parameter) || {};
   if (p.code || p.error) return handleKakaoCallback_(p);
   if (p.act) return handleAction_(p);
+  if (p.sc) return handleShortcut_(p);
   if (keyOk_('APP_KEY', p.k)) {
     return page_('앱 주소가 바뀌었어요', '<p>혈압 관리 앱이 새 주소로 옮겼습니다. 아래 버튼으로 열고 홈 화면에 다시 추가해 주세요.</p>' + backLink_());
   }
@@ -484,6 +485,10 @@ function showMyLinks() {
   Logger.log('① 내 앱 주소 (휴대폰 사파리로 열고 홈 화면에 추가하세요):\n' + appLink_());
   Logger.log('② 카카오 [카카오 로그인 → Redirect URI]에 등록할 주소:\n' + base);
   Logger.log('③ 카카오 [플랫폼 → Web 사이트 도메인]에 등록할 주소:\nhttps://script.google.com');
+  if (!props.getProperty('ACTION_KEY')) props.setProperty('ACTION_KEY', randomKey_());
+  const t = encodeURIComponent(props.getProperty('ACTION_KEY'));
+  Logger.log('④ 워치 단축어 - 러닝 거리 (끝의 km= 뒤에 숫자가 붙습니다):\n' + base + '?sc=run&t=' + t + '&km=');
+  Logger.log('⑤ 워치 단축어 - 혈압:\n' + base + '?sc=bp&t=' + t + '&sys=');
 }
 
 function page_(title, bodyHtml) {
@@ -698,6 +703,57 @@ function notifyWeekly() {
 }
 
 // ───────────────────────── 카톡 버튼으로 기록 ─────────────────────────
+/**
+ * 아이폰·워치 '단축어'용 입구. 결과를 짧은 글자로 돌려줍니다 (워치 화면에 그대로 표시).
+ *   ?sc=run&t=ACTION_KEY&km=5.2            오늘 러닝 거리 더하기
+ *   ?sc=bp&t=ACTION_KEY&sys=132&dia=85&pulse=70   오늘 혈압 저장
+ */
+function handleShortcut_(p) {
+  const text = function (s) { return ContentService.createTextOutput(s).setMimeType(ContentService.MimeType.TEXT); };
+  if (!keyOk_('ACTION_KEY', p.t)) return text('❌ 열쇠가 맞지 않아요. 단축어의 주소를 다시 확인해 주세요.');
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(p.date || '') ? p.date : seoulDate_(0);
+  try {
+    if (p.sc === 'run') {
+      const km = Number(String(p.km || '').replace(',', '.'));
+      if (!isFinite(km) || km <= 0 || km > 100) return text('❌ 거리를 숫자로 적어 주세요 (예: 5.2)');
+      let total = km;
+      withLock_(function () {
+        addRunKm_(date, Math.round(km * 100) / 100);
+        total = (Repo.listRecords().filter(function (r) { return r.date === date; })[0] || {}).run_km || km;
+      });
+      const mon = mondayOf_(date);
+      const week = Repo.listRecords().filter(function (r) { return r.date >= mon && r.date <= date; })
+        .reduce(function (a, r) { return a + (r.run_km || 0); }, 0);
+      return text('✅ ' + km + 'km 저장했어요' + (total !== km ? '\n오늘 합계 ' + total + 'km' : '') + '\n이번 주 ' + (Math.round(week * 10) / 10) + 'km');
+    }
+    if (p.sc === 'bp') {
+      const sys = num_(p.sys, 60, 260, '수축기'), dia = num_(p.dia, 30, 160, '이완기'), pulse = num_(p.pulse, 30, 220, '맥박');
+      if (sys === '' || dia === '') return text('❌ 혈압 두 숫자를 모두 적어 주세요');
+      withLock_(function () {
+        const rec = Repo.listRecords().filter(function (r) { return r.date === date; })[0] || {};
+        const row = { date: date, updated_at: nowText_(), systolic: sys, diastolic: dia, pulse: pulse === '' ? (rec.pulse != null ? rec.pulse : '') : pulse };
+        ['weight_kg', 'run_km', 'memo', 'pain'].forEach(function (k) { row[k] = rec[k] !== null && rec[k] !== undefined ? rec[k] : ''; });
+        Repo.upsertRecord(row);
+      });
+      let note = '';
+      if (sys >= 180 || dia >= 110) note = '\n⛔ 매우 높아요. 5분 쉬고 다시 재세요. 계속 높거나 두통·가슴 통증이 있으면 바로 진료를 받으세요. 오늘은 러닝 쉬기.';
+      else if (sys >= 160 || dia >= 100) note = '\n⚠️ 높은 편이에요. 오늘은 가볍게 걷기만 하세요.';
+      else if (sys >= 140 || dia >= 90) note = '\n조금 높아요. 싱겁게 드세요.';
+      else note = '\n👍 좋아요.';
+      return text('✅ ' + sys + '/' + dia + (pulse !== '' ? ' (맥박 ' + pulse + ')' : '') + ' 저장했어요' + note);
+    }
+    return text('❌ 모르는 명령이에요');
+  } catch (err) {
+    return text('❌ ' + (err && err.message || err));
+  }
+}
+
+function mondayOf_(date) {
+  const d = new Date(date + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
 function handleAction_(p) {
   if (!keyOk_('ACTION_KEY', p.t)) return page_('열 수 없는 링크예요', '<p>링크가 올바르지 않습니다.</p>');
   const date = /^\d{4}-\d{2}-\d{2}$/.test(p.date || '') ? p.date : seoulDate_(0);

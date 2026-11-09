@@ -286,6 +286,10 @@
   /* 알림 설정 */
   .bell { width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--hair); background: var(--surface); display: grid; place-items: center; margin-left: auto; margin-right: 8px; }
   .bell[hidden] { display: none; }
+  .portion { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .portion span { font-size: 12px; color: var(--mute); margin-right: 2px; }
+  .portion button { height: 32px; min-width: 40px; padding: 0 10px; border-radius: 16px; border: 1px solid var(--hair); background: var(--surface); color: var(--ink); font-size: 14px; font-weight: 600; }
+  .portion button.on { background: var(--teal); border-color: var(--teal); color: #fff; }
   .checks { margin-top: 14px; }
   .checks .lab { font-size: 13px; color: var(--mute); margin-bottom: 8px; }
   .checks .row { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -426,7 +430,8 @@
   <div id="tab-meal" class="tab">
     <section class="block">
       <div class="seg" id="meal-seg"></div>
-      <textarea id="f-foods" placeholder="먹은 음식을 쉼표로 구분해 적으세요&#10;예: 김치찌개, 공기밥 반공기, 계란후라이 2개"></textarea>
+      <textarea id="f-foods" placeholder="먹은 음식을 쉼표로 구분해 적으세요&#10;예: 김치찌개, 공기밥 반공기, 김치 1/3, 멸치볶음 반"></textarea>
+      <p class="sub" style="margin-top:6px">반찬 <b>1접시 = 내 앞 작은 종지 하나</b>(1인분) 기준이에요. 같이 먹는 큰 접시라면 내가 집어 먹은 만큼만: 두세 젓가락 ≈ ⅓, 종지 반 ≈ ½. 적은 뒤 아래 [먹은 양] 버튼으로 고쳐도 돼요.</p>
       <div id="preview"></div>
       <button class="primary" id="btn-meal">식사 추가</button>
     </section>
@@ -907,10 +912,18 @@
           '<label class="fld"><input data-f="kcal" type="number" inputmode="numeric" value="' + it.kcal + '" placeholder="?"><em>kcal</em></label>' +
           '<label class="fld"><input data-f="sodium_mg" type="number" inputmode="numeric" value="' + it.sodium_mg + '" placeholder="?"><em>mg</em></label>' +
         '</div>' +
+        (it.kcalPer != null && it.unit === it.basisUnit ? '<div class="portion"><span>먹은 양</span>' + [['한 입', 0.2], ['⅓', 0.33], ['½', 0.5], ['⅔', 0.67], ['다', 1], ['×1.5', 1.5]]
+          .map(([l, q]) => '<button data-q="' + q + '"' + (Math.abs(Number(it.qty) - q) < 0.01 ? ' class="on"' : '') + '>' + l + '</button>').join('') + '</div>' : '') +
         (it.source !== 'builtin' || it.edited ? '<label class="remember"><input type="checkbox" data-f="remember"' + (it.remember ? ' checked' : '') + '> 내 음식사전에 저장 (다음부터 자동 계산)</label>' : '') +
         '</div>';
     }).join('') + '<div class="totalbar"><span>합계</span><span id="ptotal">' + fmtN(tk) + ' kcal · 나트륨 ' + fmtN(tn) + ' mg</span></div>';
   }
+  $('preview').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-q]'); if (!b) return;
+    const box = b.closest('.pitem'), inp = box.querySelector('[data-f=qty]');
+    inp.value = b.dataset.q; inp.dispatchEvent(new Event('input', { bubbles: true }));
+    box.querySelectorAll('.portion button').forEach((x) => x.classList.toggle('on', x === b));
+  });
   $('preview').addEventListener('input', (e) => {
     const box = e.target.closest('.pitem'); if (!box) return;
     const it = state.parsed[Number(box.dataset.i)], f = e.target.dataset.f;

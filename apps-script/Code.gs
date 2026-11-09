@@ -18,7 +18,7 @@ const CONFIG = {
   SHEET_RUNS: '러닝',
   // 1행 제목(영문 키). 나중에 데이터베이스로 옮길 때 이 이름이 그대로 칸 이름이 됩니다.
   RECORD_COLUMNS: ['date', 'systolic', 'diastolic', 'pulse', 'weight_kg', 'run_km', 'memo', 'updated_at', 'pain', 'checks'],
-  CHECK_ITEMS: ['술', '커피', '소염제'], // 혈압에 영향을 주는 생활 체크 (하루 단위)
+  CHECK_ITEMS: ['술', '커피', '소염제', '흡연'], // 흡연은 '흡연:10'처럼 개비 수를 붙일 수 있음 // 혈압에 영향을 주는 생활 체크 (하루 단위)
   PAIN_PARTS: ['허리', '골반', '허벅지', '무릎', '종아리', '발목'], // 통증 체크 부위
   VERSION: 4, // 화면이 이 값을 보고 서버가 새 기능을 지원하는지 확인합니다 (3: 목표 체중, 4: 생활 체크·약 시작일)
   MEAL_COLUMNS: ['id', 'date', 'meal', 'food', 'matched', 'qty', 'unit', 'kcal', 'sodium_mg', 'source', 'created_at'],
@@ -343,7 +343,8 @@ function apiSetGoal(input) {
 
 /** 작은 설정값 저장 (지금은 소염제 먹기 시작한 날 med_start 하나) */
 function apiSetPref(key, value) {
-  const allowed = { med_start: function (v) { v = String(v || '').trim(); if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error('날짜를 확인해 주세요.'); return v; } };
+  const dateVal = function (v) { v = String(v || '').trim(); if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error('날짜를 확인해 주세요.'); return v; };
+  const allowed = { med_start: dateVal, med_end: dateVal };
   if (!allowed[key]) throw new Error('저장할 수 없는 설정입니다.');
   const prefs = getPrefs_();
   const v = allowed[key](value);
@@ -1066,8 +1067,10 @@ function cleanRecord_(input) {
 function cleanChecks_(v) {
   const seen = {};
   return String(v || '').split(',').map(function (x) { return x.trim(); }).filter(function (x) {
-    if (CONFIG.CHECK_ITEMS.indexOf(x) < 0 || seen[x]) return false;
-    seen[x] = 1; return true;
+    const m = x.match(/^(.+?)(?::(\d{1,2}))?$/);
+    if (!m || CONFIG.CHECK_ITEMS.indexOf(m[1]) < 0 || seen[m[1]]) return false;
+    if (m[2] && (m[1] !== '흡연' || Number(m[2]) < 1 || Number(m[2]) > 80)) return false;
+    seen[m[1]] = 1; return true;
   }).join(',');
 }
 

@@ -286,6 +286,20 @@
   /* 알림 설정 */
   .bell { width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--hair); background: var(--surface); display: grid; place-items: center; margin-left: auto; margin-right: 8px; }
   .bell[hidden] { display: none; }
+  .checks { margin-top: 14px; }
+  .checks .lab { font-size: 13px; color: var(--mute); margin-bottom: 8px; }
+  .checks .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chk { height: 40px; padding: 0 14px; border-radius: 20px; border: 1px solid var(--hair); background: var(--surface); color: var(--ink); font-size: 15px; font-weight: 600; }
+  .chk.on { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .habit { padding: 12px 0; border-top: 1px solid var(--hair); }
+  .habit:first-child { border-top: 0; padding-top: 0; }
+  .habit .h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .habit .h b { font-size: 16px; }
+  .habit .diff { font-size: 20px; font-weight: 800; white-space: nowrap; }
+  .habit .d2 { font-size: 13px; color: var(--mute); margin-top: 4px; line-height: 1.5; }
+  .medrow { display: flex; gap: 8px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
+  .medrow input { height: 40px; border: 1px solid var(--hair); border-radius: 10px; padding: 0 10px; font-size: 15px; background: var(--surface); color: var(--ink); }
+  .medrow button { height: 40px; padding: 0 14px; border-radius: 10px; font-weight: 700; background: var(--teal); color: #fff; }
   .kmrow { display: flex; gap: 8px; margin-top: 12px; width: 100%; flex-basis: 100%; align-items: center; }
   .kmrow input { flex: 1; min-width: 0; height: 44px; border: 1px solid var(--hair); border-radius: 12px; padding: 0 12px; font-size: 17px; background: var(--surface); color: var(--ink); }
   .kmrow button { height: 44px; padding: 0 18px; border-radius: 12px; background: var(--run); color: #fff; font-weight: 700; }
@@ -363,6 +377,7 @@
         <label class="fld wide"><span>체중</span><input id="f-weight" type="number" inputmode="decimal" step="0.1" placeholder="0.0"><em>kg</em></label>
         <label class="fld wide"><span>메모</span><input id="f-memo" type="text" placeholder="잠 설침, 약 먹음 등"></label>
       </div>
+      <div class="checks"><div class="lab">오늘 해당하는 것 (누르면 바로 저장돼요)</div><div class="row" id="checks"></div></div>
       <button class="primary" id="btn-save">저장</button>
       <div id="bp-alert"></div>
       <button class="strip" id="today-strip"></button>
@@ -425,6 +440,10 @@
     <section class="block">
       <h2>최근 7일, 그 전 7일과 비교</h2>
       <div class="stats" id="stats"></div>
+    </section>
+    <section class="block">
+      <h2>생활 습관과 혈압 <small style="font-weight:500;color:var(--mute);font-size:13px">내 기록으로 계산</small></h2>
+      <div id="habits"></div>
     </section>
     <section class="block">
       <div class="seg" id="period">
@@ -626,7 +645,7 @@
     $('datepick').style.visibility = name === 'record' || name === 'meal' ? 'visible' : 'hidden';
     $('page-title').textContent = TAB_TITLES[name] || '혈압 관리';
     $('open-settings').hidden = name !== 'record';
-    if (name === 'trend') { renderStats(); renderCharts(); }
+    if (name === 'trend') { renderStats(); renderHabits(); renderCharts(); }
     if (name === 'run') renderRunTab();
     if (name === 'food' && !state.searched) autoSearch();
     window.scrollTo(0, 0);
@@ -646,14 +665,87 @@
     $('f-sys').value = r.systolic ?? ''; $('f-dia').value = r.diastolic ?? ''; $('f-pulse').value = r.pulse ?? '';
     $('f-weight').value = r.weight_kg ?? ''; $('f-memo').value = r.memo || '';
     $('bp-alert').innerHTML = '';
+    renderChecks();
   }
+
+  // ───── 생활 체크 (술·커피·소염제) ─────
+  const CHECKS = [['술', '🍺 술'], ['커피', '☕ 커피 2잔 이상'], ['소염제', '💊 소염진통제']];
+  const parseChecks = (v) => String(v || '').split(',').filter(Boolean);
+  function prefs() { const p = (state.settings && state.settings.prefs) || {}; if (p.med_start) return p; try { return Object.assign({}, p, JSON.parse(localStorage.getItem('bp_prefs') || '{}')); } catch (_) { return p; } }
+  function onMed(date) { const r = recOf(date) || {}, ms = prefs().med_start; return parseChecks(r.checks).includes('소염제') || !!(ms && date >= ms); }
+  function renderChecks() {
+    const on = parseChecks((recOf(state.date) || {}).checks), ms = prefs().med_start;
+    $('checks').innerHTML = CHECKS.map(([k, label]) => {
+      const auto = k === '소염제' && ms && state.date >= ms && !on.includes(k);
+      return '<button class="chk' + (on.includes(k) || auto ? ' on' : '') + '" data-chk="' + k + '"' + (auto ? ' data-auto="1"' : '') + '>' + label + '</button>';
+    }).join('');
+  }
+  $('checks').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-chk]'); if (!b) return;
+    if (!serverV4()) { toast('이 기능은 데이터 서버(Code.gs)를 새 버전으로 바꿔야 저장돼요'); return; }
+    if (b.dataset.auto) { toast('소염제 시작일(' + prefs().med_start + ') 이후라 자동으로 켜져 있어요. 추이 탭에서 바꿀 수 있어요'); return; }
+    const list = parseChecks((recOf(state.date) || {}).checks), k = b.dataset.chk;
+    const next = list.includes(k) ? list.filter((x) => x !== k) : list.concat(k);
+    b.classList.toggle('on');
+    try { await patchRecord(state.date, { checks: next.join(',') }); } catch (err) { toast(errMsg(err)); renderChecks(); }
+  });
+
+  // 내 기록으로 '이럴 때 혈압이 얼마나 달랐나' 계산
+  function bpAvg(list) {
+    if (!list.length) return null;
+    return { s: list.reduce((a, r) => a + r.systolic, 0) / list.length, d: list.reduce((a, r) => a + r.diastolic, 0) / list.length, n: list.length };
+  }
+  function habitRow(title, yes, no, yesLabel, noLabel, need) {
+    const A = bpAvg(yes), B = bpAvg(no);
+    if (!A || !B || A.n < 2 || B.n < 3) {
+      const more = Math.max(0, 2 - (A ? A.n : 0)), more2 = Math.max(0, 3 - (B ? B.n : 0));
+      return '<div class="habit"><div class="h"><b>' + title + '</b><span class="d2">기록 모으는 중</span></div><div class="d2">' + need +
+        (more ? ' ' + yesLabel + ' 혈압이 ' + more + '번 더' : '') + (more2 ? (more ? ',' : '') + ' ' + noLabel + ' 혈압이 ' + more2 + '번 더' : '') + ' 있으면 계산돼요.</div></div>';
+    }
+    const ds = A.s - B.s, dd = A.d - B.d, col = ds >= 5 ? 'var(--red)' : ds >= 2 ? 'var(--amber)' : ds <= -2 ? 'var(--teal)' : 'var(--ink)';
+    const sign = (x) => { const v = Math.round(x); return (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v); };
+    return '<div class="habit"><div class="h"><b>' + title + '</b><span class="diff" style="color:' + col + '">' + sign(ds) + '<small style="font-size:12px;font-weight:600;color:var(--mute)"> / ' + sign(dd) + '</small></span></div>' +
+      '<div class="d2">' + yesLabel + ' 평균 <b>' + Math.round(A.s) + '/' + Math.round(A.d) + '</b> (' + A.n + '번) · ' + noLabel + ' 평균 <b>' + Math.round(B.s) + '/' + Math.round(B.d) + '</b> (' + B.n + '번)</div></div>';
+  }
+  function renderHabits() {
+    const bp = state.records.filter((r) => r.systolic != null && r.diastolic != null);
+    const has = (d, k) => parseChecks((recOf(d) || {}).checks).includes(k);
+    const ms = prefs().med_start;
+    let med;
+    if (ms) {
+      const from = shiftDate(ms, -90);
+      med = habitRow('💊 소염제 먹기 시작한 뒤', bp.filter((r) => r.date >= ms), bp.filter((r) => r.date < ms && r.date >= from), '시작 뒤', '시작 전 90일', '');
+    } else {
+      med = habitRow('💊 소염제 먹은 날', bp.filter((r) => has(r.date, '소염제')), bp.filter((r) => !has(r.date, '소염제')), '먹은 날', '안 먹은 날', '기록 탭에서 💊를 눌러 두세요.');
+    }
+    $('habits').innerHTML =
+      habitRow('🍺 술 마신 다음 날', bp.filter((r) => has(shiftDate(r.date, -1), '술')), bp.filter((r) => !has(shiftDate(r.date, -1), '술')), '다음 날', '그 외', '기록 탭에서 술 마신 날 🍺를 눌러 두세요.') +
+      habitRow('☕ 커피 2잔 이상 마신 날', bp.filter((r) => has(r.date, '커피')), bp.filter((r) => !has(r.date, '커피')), '마신 날', '그 외', '기록 탭에서 ☕를 눌러 두세요.') +
+      med +
+      '<div class="medrow"><span class="d2" style="margin:0">소염제를 매일 드신다면 시작한 날:</span><input id="med-start" type="date" value="' + (ms || '') + '" max="' + todayStr() + '"><button id="med-save">저장</button>' +
+      (ms ? '<button id="med-clear" style="background:none;color:var(--red);text-decoration:underline;padding:0 4px">지우기</button>' : '') + '</div>' +
+      '<p class="d2" style="margin-top:6px">시작한 날을 적으면 그 전 90일과 그 뒤를 비교해요. 매일 💊를 누르지 않아도 돼요.</p>' +
+      '<p class="sub" style="font-size:12px">숫자는 수축기 / 이완기 평균 차이예요. 같이 일어난 일일 뿐 원인이라고 단정할 수는 없어요. <b>약을 끊거나 바꾸는 건 꼭 의사·약사와 상의하세요.</b></p>';
+  }
+  $('habits').addEventListener('click', async (e) => {
+    if (e.target.id !== 'med-save' && e.target.id !== 'med-clear') return;
+    const v = e.target.id === 'med-clear' ? '' : $('med-start').value;
+    if (e.target.id === 'med-save' && !v) { toast('날짜를 골라 주세요'); return; }
+    try {
+      if (serverV4()) { const p = await call('apiSetPref', 'med_start', v); state.settings.prefs = p; }
+      else { try { localStorage.setItem('bp_prefs', JSON.stringify(v ? { med_start: v } : {})); } catch (_) {} toast('이 기기에만 저장했어요. Code.gs를 새 버전으로 바꾸면 모든 기기에 보여요'); }
+      try { if (!v) localStorage.removeItem('bp_prefs'); } catch (_) {}
+      saveCache(); renderHabits(); renderChecks();
+      if (serverV4()) toast(v ? '시작일을 저장했어요' : '지웠어요');
+    } catch (err) { toast(errMsg(err)); }
+  });
   $('btn-save').addEventListener('click', async () => {
     const btn = $('btn-save'); btn.disabled = true; btn.textContent = '저장 중…';
     const rec = { date: state.date, systolic: val('f-sys'), diastolic: val('f-dia'), pulse: val('f-pulse'),
       weight_kg: val('f-weight'), memo: val('f-memo') };
     // 러닝 거리와 몸 상태는 러닝 탭에서 관리하므로 그대로 둡니다
     const prev = state.records.find((x) => x.date === state.date) || {};
-    rec.run_km = prev.run_km ?? ''; rec.pain = prev.pain || '';
+    rec.run_km = prev.run_km ?? ''; rec.pain = prev.pain || ''; rec.checks = prev.checks || '';
     try {
       state.records = await call('apiSaveRecord', rec);
       renderRecent(); toast('저장했습니다');
@@ -696,7 +788,8 @@
       list.map((d) => {
         const r = state.records.find((x) => x.date === d) || {}, it = intake[d];
         return '<tr class="row' + (d === state.date ? ' on' : '') + '" data-date="' + esc(d) + '">' +
-          '<td>' + esc(d.slice(5).replace('-', '.')) + (r.pain ? ' <span title="통증" style="color:var(--amber)">●</span>' : '') + '</td>' +
+          '<td>' + esc(d.slice(5).replace('-', '.')) + (r.pain ? ' <span title="통증" style="color:var(--amber)">●</span>' : '') +
+            parseChecks(r.checks).map((k) => ({ 술: '🍺', 커피: '☕', 소염제: '💊' })[k] || '').join('') + '</td>' +
           '<td class="bp">' + (r.systolic != null ? r.systolic + '/' + r.diastolic : '–') + '</td>' +
           '<td class="num">' + (r.weight_kg != null ? Number(r.weight_kg).toFixed(1) : '–') + '</td>' +
           '<td class="num">' + (r.run_km ? Number(r.run_km).toFixed(1) : '–') + '</td>' +
@@ -1477,6 +1570,7 @@
   }
   function painString(o) { return PAIN_PARTS.filter((p) => o[p]).map((p) => p + ':' + o[p]).join(','); }
   function serverV2() { return (state.settings && state.settings.version || 0) >= 2; }
+  function serverV4() { return (state.settings && state.settings.version || 0) >= 4; }
   function serverV3() { return (state.settings && state.settings.version || 0) >= 3; }
 
   // 오늘 러닝해도 되는지: 혈압 → 통증 순서로 판단합니다
@@ -1500,6 +1594,11 @@
     if (bp && (bp.systolic >= 160 || bp.diastolic >= 100)) {
       return { level: 'caution', icon: '⚠️', title: '혈압이 높은 편이에요 (' + bp.systolic + '/' + bp.diastolic + ').', text: '오늘은 가볍게 걷기나 천천히 조깅만 하세요.' };
     }
+    if (Object.keys(todayPain).length && onMed(today)) {
+      return { level: 'caution', confirm: true, icon: '💊', title: '소염진통제를 먹은 날 통증이 있어요.', text: '약이 통증을 가려서 모르는 사이 부상이 커질 수 있어요. 오늘은 걷기로 바꾸세요.' };
+    }
+    const drank = parseChecks((recOf(shiftDate(today, -1)) || {}).checks).includes('술') || parseChecks((recOf(today) || {}).checks).includes('술');
+    if (drank) return { level: 'ok', icon: '🍺', title: (parseChecks((recOf(today) || {}).checks).includes('술') ? '오늘 술을 마셨어요' : '어제 술을 마셨어요') + (bp ? ' (혈압 ' + bp.systolic + '/' + bp.diastolic + ')' : '') + '.', text: '몸이 마르기 쉬워요. 물을 챙기고 평소보다 천천히, 짧게 뛰세요.' };
     if (!bp) return { level: 'ok', icon: '🩺', title: '오늘 혈압을 아직 안 쟀어요.', text: '뛰기 전에 재 두면 안전 안내를 받을 수 있어요.' };
     return { level: 'ok', icon: '✅', title: '좋아요, 오늘 혈압 ' + bp.systolic + '/' + bp.diastolic + '.', text: '몸이 괜찮다면 계획대로 뛰세요.' };
   }
@@ -1565,15 +1664,18 @@
     try { await addToToday({ addKm: c.km }); toast(c.name + ' ' + c.km + 'km를 기록했습니다'); } catch (err) { toast(errMsg(err)); }
   });
   // 오늘 기록의 다른 값은 그대로 두고 러닝 거리나 통증만 바꿉니다
-  async function addToToday(change) {
-    const today = todayStr(), r = recOf(today) || {};
-    const rec = { date: today };
-    ['systolic', 'diastolic', 'pulse', 'weight_kg', 'run_km', 'memo', 'pain'].forEach((k) => { rec[k] = r[k] == null ? '' : r[k]; });
+  function addToToday(change) { return patchRecord(todayStr(), change); }
+  async function patchRecord(date, change) {
+    const r = recOf(date) || {};
+    const rec = { date };
+    ['systolic', 'diastolic', 'pulse', 'weight_kg', 'run_km', 'memo', 'pain', 'checks'].forEach((k) => { rec[k] = r[k] == null ? '' : r[k]; });
     if (change.addKm) rec.run_km = Math.round(((Number(rec.run_km) || 0) + change.addKm) * 100) / 100;
     if ('pain' in change) rec.pain = change.pain;
-    state.records = await call('apiSaveRecord', rec);
-    if (state.date === today && !typing) fillForm();
-    renderRecent(); renderRunTab();
+    if ('checks' in change) rec.checks = change.checks;
+    const empty = !['systolic', 'pulse', 'weight_kg', 'run_km', 'memo', 'pain', 'checks'].some((k) => rec[k] !== '' && rec[k] != null);
+    state.records = empty ? await call('apiDeleteRecord', date) : await call('apiSaveRecord', rec);
+    if (state.date === date && !typing) fillForm();
+    renderRecent(); renderTodayStrip(); if (state.tab === 'run') renderRunTab(); saveCache();
   }
 
   // 몸 그림
@@ -1649,7 +1751,7 @@
       const r = recOf(d) || {}, it = intake[d];
       if (!r.date && !it) continue;
       out.push({ date: d, bp: r.systolic != null ? r.systolic + '/' + r.diastolic : '', pulse: r.pulse ?? '', weight: r.weight_kg ?? '',
-        run: r.run_km || '', sodium: it ? Math.round(it.sodium) : '', pain: (r.pain || '').replace(/:1/g, '(뻐근)').replace(/:2/g, '(아픔)'), memo: r.memo || '' });
+        run: r.run_km || '', sodium: it ? Math.round(it.sodium) : '', pain: (r.pain || '').replace(/:1/g, '(뻐근)').replace(/:2/g, '(아픔)'), memo: [parseChecks(r.checks).map((k) => k === '커피' ? '커피2잔+' : k).join('·'), r.memo].filter(Boolean).join(' / ') });
     }
     return out;
   }

@@ -17,9 +17,10 @@ const CONFIG = {
   SHEET_COURSES: '코스',
   SHEET_RUNS: '러닝',
   // 1행 제목(영문 키). 나중에 데이터베이스로 옮길 때 이 이름이 그대로 칸 이름이 됩니다.
-  RECORD_COLUMNS: ['date', 'systolic', 'diastolic', 'pulse', 'weight_kg', 'run_km', 'memo', 'updated_at', 'pain'],
+  RECORD_COLUMNS: ['date', 'systolic', 'diastolic', 'pulse', 'weight_kg', 'run_km', 'memo', 'updated_at', 'pain', 'checks'],
+  CHECK_ITEMS: ['술', '커피', '소염제'], // 혈압에 영향을 주는 생활 체크 (하루 단위)
   PAIN_PARTS: ['허리', '골반', '허벅지', '무릎', '종아리', '발목'], // 통증 체크 부위
-  VERSION: 3, // 화면이 이 값을 보고 서버가 새 기능을 지원하는지 확인합니다 (3: 목표 체중)
+  VERSION: 4, // 화면이 이 값을 보고 서버가 새 기능을 지원하는지 확인합니다 (3: 목표 체중, 4: 생활 체크·약 시작일)
   MEAL_COLUMNS: ['id', 'date', 'meal', 'food', 'matched', 'qty', 'unit', 'kcal', 'sodium_mg', 'source', 'created_at'],
   CUSTOM_FOOD_COLUMNS: ['name', 'unit', 'kcal', 'sodium_mg', 'updated_at'],
   RESTAURANT_COLUMNS: ['id', 'name', 'category', 'address', 'phone', 'tip', 'link', 'created_at'],
@@ -92,7 +93,7 @@ const API_FUNCS = {
   apiSaveRestaurant: apiSaveRestaurant, apiDeleteRestaurant: apiDeleteRestaurant,
   apiAddPlace: apiAddPlace, apiDeletePlace: apiDeletePlace, apiSearchRestaurants: apiSearchRestaurants,
   apiSaveCourse: apiSaveCourse, apiDeleteCourse: apiDeleteCourse, apiWalkSegment: apiWalkSegment,
-  apiSaveRun: apiSaveRun, apiDeleteRun: apiDeleteRun, apiSetGoal: apiSetGoal,
+  apiSaveRun: apiSaveRun, apiDeleteRun: apiDeleteRun, apiSetGoal: apiSetGoal, apiSetPref: apiSetPref,
   apiSetNotify: apiSetNotify, apiSendTest: apiSendTest, apiUnlinkKakao: apiUnlinkKakao,
 };
 
@@ -132,7 +133,7 @@ function apiGetData() {
       hasKakaoKey: !!props.getProperty('KAKAO_REST_KEY'),
       center: CONFIG.DEFAULT_CENTER,
       version: CONFIG.VERSION,
-      goal: getGoal_(),
+      goal: getGoal_(), prefs: getPrefs_(),
       kakao: kakaoStatus_(),
     },
     themes: LOW_SALT_THEMES.map(function (t) { return { key: t.key, label: t.label }; }),
@@ -340,6 +341,17 @@ function apiSetGoal(input) {
   return goal;
 }
 
+/** 작은 설정값 저장 (지금은 소염제 먹기 시작한 날 med_start 하나) */
+function apiSetPref(key, value) {
+  const allowed = { med_start: function (v) { v = String(v || '').trim(); if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error('날짜를 확인해 주세요.'); return v; } };
+  if (!allowed[key]) throw new Error('저장할 수 없는 설정입니다.');
+  const prefs = getPrefs_();
+  const v = allowed[key](value);
+  if (v === '') delete prefs[key]; else prefs[key] = v;
+  PropertiesService.getScriptProperties().setProperty('PREFS', JSON.stringify(prefs));
+  return prefs;
+}
+function getPrefs_() { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('PREFS') || '{}') || {}; } catch (e) { return {}; } }
 function getGoal_() {
   try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('GOAL') || 'null'); } catch (e) { return null; }
 }
@@ -349,7 +361,7 @@ function addRunKm_(date, deltaKm) {
   const rec = Repo.listRecords().filter(function (r) { return r.date === date; })[0];
   const total = Math.max(0, Math.round((((rec && rec.run_km) || 0) + deltaKm) * 100) / 100);
   const row = { date: date, updated_at: nowText_() };
-  ['systolic', 'diastolic', 'pulse', 'weight_kg', 'memo', 'pain'].forEach(function (k) { row[k] = rec && rec[k] !== null && rec[k] !== undefined ? rec[k] : ''; });
+  ['systolic', 'diastolic', 'pulse', 'weight_kg', 'memo', 'pain', 'checks'].forEach(function (k) { row[k] = rec && rec[k] !== null && rec[k] !== undefined ? rec[k] : ''; });
   row.run_km = total || '';
   Repo.upsertRecord(row);
 }
@@ -732,7 +744,7 @@ function handleShortcut_(p) {
       withLock_(function () {
         const rec = Repo.listRecords().filter(function (r) { return r.date === date; })[0] || {};
         const row = { date: date, updated_at: nowText_(), systolic: sys, diastolic: dia, pulse: pulse === '' ? (rec.pulse != null ? rec.pulse : '') : pulse };
-        ['weight_kg', 'run_km', 'memo', 'pain'].forEach(function (k) { row[k] = rec[k] !== null && rec[k] !== undefined ? rec[k] : ''; });
+        ['weight_kg', 'run_km', 'memo', 'pain', 'checks'].forEach(function (k) { row[k] = rec[k] !== null && rec[k] !== undefined ? rec[k] : ''; });
         Repo.upsertRecord(row);
       });
       let note = '';
@@ -797,7 +809,7 @@ const Repo = {
           date: r.date,
           systolic: toNum_(r.systolic), diastolic: toNum_(r.diastolic), pulse: toNum_(r.pulse),
           weight_kg: toNum_(r.weight_kg), run_km: toNum_(r.run_km),
-          memo: String(r.memo || ''), updated_at: String(r.updated_at || ''), pain: String(r.pain || ''),
+          memo: String(r.memo || ''), updated_at: String(r.updated_at || ''), pain: String(r.pain || ''), checks: String(r.checks || ''),
         };
       })
       .sort(byDate_);
@@ -1041,12 +1053,22 @@ function cleanRecord_(input) {
     run_km: num_(input.run_km, 0, 100, '러닝 거리'),
     memo: String(input.memo || '').slice(0, 500),
     pain: cleanPain_(input.pain),
+    checks: cleanChecks_(input.checks),
   };
   if ((rec.systolic === '') !== (rec.diastolic === '')) throw new Error('혈압은 수축기와 이완기를 함께 입력해 주세요.');
   if (rec.systolic !== '' && rec.diastolic >= rec.systolic) throw new Error('이완기 혈압이 수축기보다 클 수 없습니다. 순서를 확인해 주세요.');
-  const hasAny = ['systolic', 'pulse', 'weight_kg', 'run_km'].some(function (k) { return rec[k] !== ''; }) || rec.memo || rec.pain;
+  const hasAny = ['systolic', 'pulse', 'weight_kg', 'run_km'].some(function (k) { return rec[k] !== ''; }) || rec.memo || rec.pain || rec.checks;
   if (!hasAny) throw new Error('입력된 값이 없습니다.');
   return rec;
+}
+
+/** 생활 체크: "술,소염제" 형태. 정해진 항목만 받습니다. */
+function cleanChecks_(v) {
+  const seen = {};
+  return String(v || '').split(',').map(function (x) { return x.trim(); }).filter(function (x) {
+    if (CONFIG.CHECK_ITEMS.indexOf(x) < 0 || seen[x]) return false;
+    seen[x] = 1; return true;
+  }).join(',');
 }
 
 /** 통증 기록: "무릎:2,발목:1" 형태 (1 = 뻐근함, 2 = 아픔). 정해진 부위만 받습니다. */

@@ -20,7 +20,7 @@ const CONFIG = {
   RECORD_COLUMNS: ['date', 'systolic', 'diastolic', 'pulse', 'weight_kg', 'run_km', 'memo', 'updated_at', 'pain', 'checks'],
   CHECK_ITEMS: ['술', '커피', '소염제', '흡연'], // 흡연은 '흡연:10'처럼 개비 수를 붙일 수 있음 // 혈압에 영향을 주는 생활 체크 (하루 단위)
   PAIN_PARTS: ['허리', '골반', '허벅지', '무릎', '종아리', '발목'], // 통증 체크 부위
-  VERSION: 4, // 화면이 이 값을 보고 서버가 새 기능을 지원하는지 확인합니다 (3: 목표 체중, 4: 생활 체크·약 시작일)
+  VERSION: 5, // 화면이 이 값을 보고 서버가 새 기능을 지원하는지 확인합니다 (3: 목표 체중, 4: 생활 체크·약 시작일)
   MEAL_COLUMNS: ['id', 'date', 'meal', 'food', 'matched', 'qty', 'unit', 'kcal', 'sodium_mg', 'source', 'created_at'],
   CUSTOM_FOOD_COLUMNS: ['name', 'unit', 'kcal', 'sodium_mg', 'updated_at'],
   RESTAURANT_COLUMNS: ['id', 'name', 'category', 'address', 'phone', 'tip', 'link', 'created_at'],
@@ -92,7 +92,7 @@ const API_FUNCS = {
   apiAddMeals: apiAddMeals, apiDeleteMeal: apiDeleteMeal,
   apiSaveRestaurant: apiSaveRestaurant, apiDeleteRestaurant: apiDeleteRestaurant,
   apiAddPlace: apiAddPlace, apiDeletePlace: apiDeletePlace, apiSearchRestaurants: apiSearchRestaurants,
-  apiSaveCourse: apiSaveCourse, apiDeleteCourse: apiDeleteCourse, apiWalkSegment: apiWalkSegment,
+  apiSaveCourse: apiSaveCourse, apiRunToCourse: apiRunToCourse, apiDeleteCourse: apiDeleteCourse, apiWalkSegment: apiWalkSegment,
   apiSaveRun: apiSaveRun, apiDeleteRun: apiDeleteRun, apiSetGoal: apiSetGoal, apiSetPref: apiSetPref,
   apiSetNotify: apiSetNotify, apiSendTest: apiSendTest, apiUnlinkKakao: apiUnlinkKakao,
 };
@@ -383,6 +383,18 @@ function apiSaveCourse(input) {
   };
   withLock_(function () { Repo.upsertCourse(course); });
   return Repo.listCourses();
+}
+
+/** GPS로 뛴 기록을 내 코스로 저장합니다. (경로 점은 시트에 있는 원본을 그대로 사용) */
+function apiRunToCourse(runId, name) {
+  const run = Repo.listRuns().filter(function (r) { return String(r.id) === String(runId); })[0];
+  if (!run) throw new Error('그 러닝 기록을 찾지 못했습니다.');
+  let pts = [];
+  try { pts = JSON.parse(run.pointsText || '[]'); } catch (e) { pts = []; }
+  pts = (pts || []).filter(function (p) { return Array.isArray(p) && isFinite(p[0]) && isFinite(p[1]); });
+  if (pts.length < 2) throw new Error('경로가 없는 기록이라 코스로 만들 수 없습니다.');
+  if (pts.length > 400) { const step = (pts.length - 1) / 399; pts = Array.from({ length: 400 }, function (_, k) { return pts[Math.round(k * step)]; }); }
+  return apiSaveCourse({ name: name, km: run.km, points: pts.map(function (p) { return [p[0], p[1]]; }) });
 }
 
 function apiDeleteCourse(id) {
@@ -908,6 +920,8 @@ const Repo = {
 
   addRun: function (run) {
     const sheet = getSheet_(CONFIG.SHEET_RUNS, CONFIG.RUN_COLUMNS);
+    // 시작 시각·페이스 칸은 글자로 고정 (예전에 만든 시트도 여기서 고쳐짐)
+    headerOf_(sheet).forEach(function (h, i) { if (h === 'started_at' || h === 'pace') sheet.getRange(1, i + 1, sheet.getMaxRows(), 1).setNumberFormat('@'); });
     sheet.appendRow(rowFor_(sheet, run));
   },
 
@@ -1019,7 +1033,9 @@ function readObjects_(name, columns) {
     const o = {};
     header.forEach(function (h, i) {
       let v = row[i];
-      if (isDate_(v)) v = Utilities.formatDate(v, tz, h === 'date' ? 'yyyy-MM-dd' : 'yyyy-MM-dd HH:mm');
+      // 시트가 '16:14', '6:28' 같은 글자를 시각(1899-12-30 …)으로 바꿔 둔 경우 원래 글자로 되돌립니다
+      if (isDate_(v) && v.getFullYear() < 1900) v = Utilities.formatDate(v, tz, 'H:mm');
+      else if (isDate_(v)) v = Utilities.formatDate(v, tz, h === 'date' ? 'yyyy-MM-dd' : 'yyyy-MM-dd HH:mm');
       o[h] = v;
     });
     return o;

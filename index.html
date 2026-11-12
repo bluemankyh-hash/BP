@@ -307,6 +307,7 @@
   .medrow { display: flex; gap: 8px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
   .medrow input { height: 40px; border: 1px solid var(--hair); border-radius: 10px; padding: 0 10px; font-size: 15px; background: var(--surface); color: var(--ink); }
   .medrow button { height: 40px; padding: 0 14px; border-radius: 10px; font-weight: 700; background: var(--teal); color: #fff; }
+  .tocourse { margin-top: 6px; height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid var(--teal); color: var(--teal); background: transparent; font-size: 13px; font-weight: 700; }
   .kmrow { display: flex; gap: 8px; margin-top: 12px; width: 100%; flex-basis: 100%; align-items: center; }
   .kmrow input { flex: 1; min-width: 0; height: 44px; border: 1px solid var(--hair); border-radius: 12px; padding: 0 12px; font-size: 17px; background: var(--surface); color: var(--ink); }
   .kmrow button { height: 44px; padding: 0 18px; border-radius: 12px; background: var(--run); color: #fff; font-weight: 700; }
@@ -431,7 +432,7 @@
     <section class="block">
       <div class="seg" id="meal-seg"></div>
       <textarea id="f-foods" placeholder="먹은 음식을 쉼표로 구분해 적으세요&#10;예: 김치찌개, 공기밥 반공기, 김치 1/3, 멸치볶음 반"></textarea>
-      <p class="sub" style="margin-top:6px">반찬 <b>1접시 = 내 앞 작은 종지 하나</b>(1인분) 기준이에요. 같이 먹는 큰 접시라면 내가 집어 먹은 만큼만: 두세 젓가락 ≈ ⅓, 종지 반 ≈ ½. 적은 뒤 아래 [먹은 양] 버튼으로 고쳐도 돼요.</p>
+      <p class="sub" style="margin-top:6px">반찬 <b>1접시 = 내 앞 작은 종지 하나</b>(1인분) 기준이에요. 같이 먹는 큰 접시라면 내가 집어 먹은 만큼만: 두세 젓가락 ≈ ⅓, 종지 반 ≈ ½. 적은 뒤 아래 [먹은 양] 버튼으로 고쳐도 돼요. 국·찌개·국밥은 <b>[국물]</b> 버튼으로 남긴 만큼 나트륨이 빠져요 (예: <b>돼지국밥 국물 반 남김</b>).</p>
       <div id="preview"></div>
       <button class="primary" id="btn-meal">식사 추가</button>
     </section>
@@ -866,6 +867,11 @@
   function parseOne(raw) {
     let t = ' ' + raw + ' ', qty = 1, unitWord = '', m;
     if (/곱빼기/.test(t)) { qty = 1.5; t = t.replace('곱빼기', ' '); }
+    let broth = 0;
+    if ((m = t.match(/국물\s*(다|전부|모두|반|절반|1\/2|조금|약간)?\s*(남김|남겼|남기고|안\s*먹|빼고)?/)) && (m[1] || m[2])) {
+      broth = /다|전부|모두/.test(m[1] || '') || (!m[1] && /안\s*먹|빼고/.test(m[2] || '')) ? 1 : /조금|약간/.test(m[1] || '') ? 0.25 : 0.5;
+      t = t.replace(m[0], ' ');
+    }
     if ((m = t.match(new RegExp('(\\d+(?:\\.\\d+)?)\\s*/\\s*(\\d+)\\s*(' + UNIT_RE + ')?')))) { qty *= Number(m[1]) / Number(m[2]); unitWord = m[3] || ''; t = t.replace(m[0], ' '); }
     else if ((m = t.match(new RegExp('(\\d+(?:\\.\\d+)?)\\s*(' + UNIT_RE + ')?')))) { qty *= Number(m[1]); unitWord = m[2] || ''; t = t.replace(m[0], ' '); }
     else if ((m = t.match(new RegExp('(한|두|세|네|다섯|여섯|반)\\s*(' + UNIT_RE + ')')))) { qty *= m[1] === '반' ? 0.5 : KNUM[m[1]]; unitWord = m[2]; t = t.replace(m[0], ' '); }
@@ -873,7 +879,7 @@
     if (unitWord === '그램') unitWord = 'g';
     let name = t.replace(/\s+/g, ' ').trim();
     if (!name && unitWord === '공기') name = '공기밥';
-    return { raw, name: name || raw, qty, unitWord };
+    return { raw, name: name || raw, qty, unitWord, broth };
   }
   function dictionary() {
     const custom = state.customFoods.map((f) => ({ names: [f.name], unit: f.unit, kcal: f.kcal, sodium_mg: f.sodium_mg, source: 'custom' }));
@@ -897,9 +903,19 @@
     else if (p.unitWord && e.alt && e.alt[p.unitWord]) factor = p.qty * e.alt[p.unitWord];
     const unit = p.unitWord === 'g' && e.g ? 'g' : (p.unitWord && e.alt && e.alt[p.unitWord] ? p.unitWord : e.unit);
     const shownQty = unit === e.unit ? factor : p.qty;
-    return { food: p.name, matched: e.names[0], qty: Math.round(shownQty * 100) / 100, unit, kcalPer: e.kcal, sodiumPer: e.sodium_mg, basisUnit: e.unit,
+    return withBroth({ food: p.name, matched: e.names[0], qty: Math.round(shownQty * 100) / 100, unit, kcalPer: e.kcal, sodiumPer: e.sodium_mg, basisUnit: e.unit,
       factorPerQty: shownQty ? factor / shownQty : 1, kcal: Math.round(e.kcal * factor), sodium_mg: e.sodium_mg == null ? '' : Math.round(e.sodium_mg * factor),
-      source: e.source, remember: false };
+      source: e.source, remember: false, broth: 0, soup: isSoup(p.name) || isSoup(e.names[0]) }, p.broth);
+  }
+  // 국·찌개·국밥·면 국물: 나트륨의 약 65%가 국물에 있다고 보고 계산 (남긴 비율만큼 뺌)
+  const BROTH_NA = 0.65, BROTH_KCAL = 0.15;
+  function isSoup(name) { const n = String(name || ''); return /국|탕|찌개|라면|짬뽕|우동|국수|냉면|전골|해장|짜글이|수제비|칼국수/.test(n) && !/비빔|볶음|짜장|국물없|볶이/.test(n); }
+  function withBroth(it, broth) { if (it.soup && broth) it.broth = broth; recalc(it); return it; }
+  function recalc(it) {
+    if (it.kcalPer == null) return;
+    const factor = (Number(it.qty) || 0) * (it.factorPerQty || 1), b = it.soup ? (it.broth || 0) : 0;
+    it.kcal = Math.round(it.kcalPer * factor * (1 - BROTH_KCAL * b));
+    it.sodium_mg = it.sodiumPer == null ? '' : Math.round(it.sodiumPer * factor * (1 - BROTH_NA * b));
   }
   function parseFoods() { state.parsed = splitFoods($('f-foods').value).map(parseOne).map(estimate); renderPreview(); }
   let parseTimer;
@@ -925,11 +941,22 @@
         '</div>' +
         (it.kcalPer != null && it.unit === it.basisUnit ? '<div class="portion"><span>먹은 양</span>' + [['한 입', 0.2], ['⅓', 0.33], ['½', 0.5], ['⅔', 0.67], ['다', 1], ['×1.5', 1.5]]
           .map(([l, q]) => '<button data-q="' + q + '"' + (Math.abs(Number(it.qty) - q) < 0.01 ? ' class="on"' : '') + '>' + l + '</button>').join('') + '</div>' : '') +
+        (it.soup && it.kcalPer != null ? '<div class="portion broth"><span>국물</span>' + [['다 먹음', 0], ['조금 남김', 0.25], ['½ 남김', 0.5], ['다 남김', 1]]
+          .map(([l, q]) => '<button data-broth="' + q + '"' + ((it.broth || 0) === q ? ' class="on"' : '') + '>' + l + '</button>').join('') + '</div>' : '') +
         (it.source !== 'builtin' || it.edited ? '<label class="remember"><input type="checkbox" data-f="remember"' + (it.remember ? ' checked' : '') + '> 내 음식사전에 저장 (다음부터 자동 계산)</label>' : '') +
         '</div>';
     }).join('') + '<div class="totalbar"><span>합계</span><span id="ptotal">' + fmtN(tk) + ' kcal · 나트륨 ' + fmtN(tn) + ' mg</span></div>';
   }
   $('preview').addEventListener('click', (e) => {
+    const bb = e.target.closest('[data-broth]');
+    if (bb) {
+      const box = bb.closest('.pitem'), it = state.parsed[Number(box.dataset.i)];
+      it.broth = Number(bb.dataset.broth); recalc(it);
+      box.querySelector('[data-f=kcal]').value = it.kcal; box.querySelector('[data-f=sodium_mg]').value = it.sodium_mg;
+      box.querySelectorAll('.broth button').forEach((x) => x.classList.toggle('on', x === bb));
+      const [tk, tn] = totals(state.parsed); if ($('ptotal')) $('ptotal').textContent = fmtN(tk) + ' kcal · 나트륨 ' + fmtN(tn) + ' mg';
+      return;
+    }
     const b = e.target.closest('[data-q]'); if (!b) return;
     const box = b.closest('.pitem'), inp = box.querySelector('[data-f=qty]');
     inp.value = b.dataset.q; inp.dispatchEvent(new Event('input', { bubbles: true }));
@@ -941,8 +968,7 @@
     if (f === 'remember') { it.remember = e.target.checked; return; }
     it[f] = e.target.value;
     if (f === 'qty' && it.kcalPer != null) {
-      const factor = (Number(e.target.value) || 0) * (it.factorPerQty || 1);
-      it.kcal = Math.round(it.kcalPer * factor); it.sodium_mg = it.sodiumPer == null ? '' : Math.round(it.sodiumPer * factor);
+      recalc(it);
       box.querySelector('[data-f=kcal]').value = it.kcal; box.querySelector('[data-f=sodium_mg]').value = it.sodium_mg;
     }
     if ((f === 'kcal' || f === 'sodium_mg') && !it.edited) {
@@ -969,7 +995,8 @@
     if (missing.length && !confirm(missing.map((m) => m.food).join(', ') + '의 칼로리가 비어 있습니다. 그대로 저장할까요? (합계에서 빠집니다)')) return;
     const btn = $('btn-meal'); btn.disabled = true; btn.textContent = '저장 중…';
     try {
-      const items = state.parsed.map((it) => ({ food: it.food, matched: it.matched, qty: it.qty, unit: it.unit, kcal: it.kcal, sodium_mg: it.sodium_mg, source: it.source, remember: !!it.remember }));
+      const BL = { 0.25: '국물 조금 남김', 0.5: '국물 ½ 남김', 1: '국물 다 남김' };
+      const items = state.parsed.map((it) => ({ food: it.food + (it.soup && it.broth ? ' (' + BL[it.broth] + ')' : ''), matched: it.matched, qty: it.qty, unit: it.unit, kcal: it.kcal, sodium_mg: it.sodium_mg, source: it.source, remember: !!it.remember && !(it.soup && it.broth) }));
       const res = await call('apiAddMeals', state.date, state.meal, items);
       state.meals = res.meals; state.customFoods = res.customFoods;
       $('f-foods').value = ''; state.parsed = []; renderPreview(); renderMealDay(); renderTodayStrip();
@@ -991,11 +1018,28 @@
       const items = list.filter((m) => m.meal === meal); if (!items.length) return '';
       return '<div class="mealhead"><span>' + meal + '</span><span>' + fmtN(items.reduce((a, m) => a + (m.kcal || 0), 0)) + ' kcal</span></div>' +
         items.map((m) => '<div class="mi"><span>' + esc(m.food) + ' <span class="meta">' + (m.qty ?? 1) + esc(m.unit || '') + '</span><br><span class="meta">' +
-          (m.kcal == null ? '칼로리 미입력' : fmtN(m.kcal) + 'kcal') + (m.sodium_mg == null ? '' : ' · 나트륨 ' + fmtN(m.sodium_mg) + 'mg') + '</span></span>' +
+          (m.kcal == null ? '칼로리 미입력' : fmtN(m.kcal) + 'kcal') + (m.sodium_mg == null ? '' : ' · 나트륨 ' + fmtN(m.sodium_mg) + 'mg') + '</span>' +
+          (isSoup(m.food) && !/국물/.test(m.food) && m.sodium_mg ? '<span class="portion broth" style="margin-top:6px"><span>국물 남겼으면</span>' +
+            [['조금', 0.25], ['½', 0.5], ['다', 1]].map(([l, q]) => '<button data-fixbroth="' + q + '" data-id="' + esc(m.id) + '">' + l + '</button>').join('') + '</span>' : '') + '</span>' +
           '<button class="x" data-delmeal="' + esc(m.id) + '">삭제</button></div>').join('');
     }).join('');
   }
   $('daymeals').addEventListener('click', async (e) => {
+    const fb = e.target.closest('[data-fixbroth]');
+    if (fb) {
+      const m = state.meals.find((x) => String(x.id) === fb.dataset.id); if (!m) return;
+      const b = Number(fb.dataset.fixbroth), BL = { 0.25: '국물 조금 남김', 0.5: '국물 ½ 남김', 1: '국물 다 남김' };
+      const item = { food: m.food + ' (' + BL[b] + ')', matched: m.matched || '', qty: m.qty, unit: m.unit || '', source: m.source || 'builtin', remember: false,
+        kcal: m.kcal == null ? '' : Math.round(m.kcal * (1 - BROTH_KCAL * b)), sodium_mg: Math.round(m.sodium_mg * (1 - BROTH_NA * b)) };
+      fb.parentNode.querySelectorAll('button').forEach((x) => { x.disabled = true; });
+      try {
+        await call('apiAddMeals', m.date, m.meal, [item]);
+        state.meals = await call('apiDeleteMeal', m.id);
+        saveCache(); renderMealDay(); renderTodayStrip();
+        toast('나트륨 ' + fmtN(m.sodium_mg) + ' → ' + fmtN(item.sodium_mg) + 'mg으로 고쳤어요');
+      } catch (err) { toast(errMsg(err)); renderMealDay(); }
+      return;
+    }
     const id = e.target.dataset.delmeal; if (!id || !confirm('이 음식을 삭제할까요?')) return;
     try { state.meals = await call('apiDeleteMeal', id); renderMealDay(); renderTodayStrip(); toast('삭제했습니다'); }
     catch (err) { toast(errMsg(err)); }
@@ -1765,7 +1809,8 @@
   });
 
   function routeSvg(points) {
-    if (!points || points.length < 2) return '<span class="shoe">👟</span>';
+    points = (points || []).filter((p) => Array.isArray(p) && isFinite(p[0]) && isFinite(p[1]));
+    if (points.length < 2) return '<span class="shoe">👟</span>';
     const lat0 = points[0][0] * Math.PI / 180, xs = points.map((p) => p[1] * Math.cos(lat0)), ys = points.map((p) => -p[0]);
     const minX = Math.min(...xs), minY = Math.min(...ys), span = Math.max(Math.max(...xs) - minX, Math.max(...ys) - minY) || 1;
     const offX = (span - (Math.max(...xs) - minX)) / 2, offY = (span - (Math.max(...ys) - minY)) / 2;
@@ -1779,12 +1824,31 @@
       const gps = (state.runs || []).filter((x) => x.date === r.date);
       const g = gps[gps.length - 1];
       const total = Number(r.run_km), main = g ? Number(g.km) : total;
-      const sub = g ? fmtTime((g.duration_s || 0) * 1000) + ' · ' + esc(g.pace) + '/km' + (g.kcal ? ' · ' + g.kcal + 'kcal' : '') +
+      const sub = g ? fmtTime((g.duration_s || 0) * 1000) + ' · ' + esc(cleanClock(g.pace)) + '/km' + (g.kcal ? ' · ' + g.kcal + 'kcal' : '') +
         (Math.abs(total - main) >= 0.01 ? ' · 하루 합계 ' + total.toFixed(2) + 'km' : '') : '워치·직접 입력';
-      return '<div class="act"><div class="route">' + routeSvg(g && g.points) + '</div><div><div class="t">' + esc(prettyDate(r.date)) + (g && g.started_at ? ' ' + esc(g.started_at) : '') + '</div>' +
-        '<div class="main">' + main.toFixed(2) + ' km</div><div class="t">' + sub + '</div></div></div>';
+      return '<div class="act"><div class="route">' + routeSvg(g && g.points) + '</div><div><div class="t">' + esc(prettyDate(r.date)) + (g && g.started_at ? ' ' + esc(cleanClock(g.started_at)) : '') + '</div>' +
+        '<div class="main">' + main.toFixed(2) + ' km</div><div class="t">' + sub + '</div>' +
+        (g && g.points && g.points.filter(Boolean).length > 1 ? (savedAsCourse(g) ? '<div class="t" style="color:var(--teal)">✓ 내 코스에 있어요</div>' : '<button class="tocourse" data-run="' + esc(g.id) + '">＋ 내 코스로 저장</button>') : '') +
+        '</div></div>';
     }).join('');
   }
+  // 시트가 시각으로 바꿔 둔 '1899-12-30 06:28' → '6:28'
+  function cleanClock(v) { return String(v || '').replace(/^1899-12-3[01][ T]/, '').replace(/^0(\d:)/, '$1'); }
+  function savedAsCourse(g) { let ids = []; try { ids = JSON.parse(localStorage.getItem('bp_run2course') || '[]'); } catch (_) {} return ids.includes(String(g.id)) && (state.courses || []).some((c) => Math.abs(Number(c.km) - Number(g.km)) < 0.01); }
+  $('run-acts').addEventListener('click', async (e) => {
+    const b = e.target.closest('.tocourse'); if (!b) return;
+    const g = (state.runs || []).find((x) => String(x.id) === b.dataset.run); if (!g) return;
+    const name = prompt('코스 이름을 정해 주세요', '공원 ' + Number(g.km).toFixed(1) + 'km');
+    if (!name || !name.trim()) return;
+    b.disabled = true; b.textContent = '저장 중…';
+    try {
+      state.courses = (state.settings && state.settings.version >= 5)
+        ? await call('apiRunToCourse', g.id, name.trim())
+        : await call('apiSaveCourse', { name: name.trim(), km: g.km, points: g.points.filter(Boolean).map((p) => [p[0], p[1]]) });
+      try { const ids = JSON.parse(localStorage.getItem('bp_run2course') || '[]'); ids.push(String(g.id)); localStorage.setItem('bp_run2course', JSON.stringify(ids.slice(-50))); } catch (_) {}
+      saveCache(); renderRunTab(); toast('"' + name.trim() + '" 코스로 저장했어요. 러닝 탭 위쪽 코스 버튼에 생겼어요');
+    } catch (err) { toast(errMsg(err)); b.disabled = false; b.textContent = '＋ 내 코스로 저장'; }
+  });
   function renderPRs() {
     const runDays = state.records.filter((r) => r.run_km > 0);
     const gps = (state.runs || []).filter((r) => r.km > 0 && r.duration_s > 0);

@@ -286,6 +286,24 @@
   /* 알림 설정 */
   .bell { width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--hair); background: var(--surface); display: grid; place-items: center; margin-left: auto; margin-right: 8px; }
   .bell[hidden] { display: none; }
+  .st-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .st-week { font-size: 14px; color: var(--mute); }
+  .st-week b { font-size: 20px; color: var(--ink); }
+  .st-dots { display: flex; gap: 6px; margin: 8px 0 12px; }
+  .st-dots i { width: 28px; height: 8px; border-radius: 4px; background: var(--hair); }
+  .st-dots i.on { background: var(--teal); }
+  .st-ex { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .st-ex button { height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid var(--hair); background: var(--surface); color: var(--ink); font-size: 14px; font-weight: 600; }
+  .st-ex button.on { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .st-timer { text-align: center; padding: 16px; border-radius: 16px; background: var(--panel); }
+  .st-timer .ph { font-size: 14px; font-weight: 700; color: var(--teal); }
+  .st-timer .ph.rest { color: var(--amber); }
+  .st-timer .t { font-size: 52px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .st-timer .s { font-size: 13px; color: var(--mute); }
+  .st-btns { display: flex; gap: 8px; margin-top: 12px; }
+  .st-btns button { flex: 1; height: 46px; border-radius: 12px; font-weight: 700; font-size: 15px; border: 1px solid var(--hair); background: var(--surface); color: var(--ink); }
+  .st-btns .go { background: var(--teal); border-color: var(--teal); color: #fff; }
+  .gpx-btn { margin-top: 6px; margin-left: 6px; height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid var(--hair); color: var(--mute); background: transparent; font-size: 13px; font-weight: 700; }
   .bud-head { font-size: 17px; font-weight: 800; line-height: 1.45; }
   .bud-head em { font-style: normal; color: var(--teal); }
   .bud-head em.over { color: var(--red); }
@@ -451,6 +469,10 @@
       <p class="sub" id="pain-note"></p>
     </section>
     <section class="block">
+      <h2>근력 · 버티기 <small style="font-weight:500;color:var(--mute);font-size:13px">혈압에 효과가 큰 운동</small></h2>
+      <div id="strength"></div>
+    </section>
+    <section class="block">
       <h2>내 기록</h2>
       <div class="prs" id="run-prs"></div>
     </section>
@@ -592,6 +614,7 @@
     <label class="switch" style="padding:8px 0 12px;border:0"><span>실제 길 따라 잇기<small>카카오 도보 길찾기로 점 사이를 길 따라 연결</small></span><input type="checkbox" id="c-walk"></label>
     <label class="fld"><span>코스 이름</span><input id="c-name" type="text" placeholder="삼문동 한바퀴" style="text-align:left;font-weight:500;font-size:16px"></label>
     <button class="primary" id="c-save">코스 저장</button>
+    <label class="photo-btn" style="margin-top:10px"><input type="file" id="c-gpx" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden>📂 GPX 파일로 코스 가져오기</label>
     <div class="clist" id="c-list"></div>
   </div>
 </div>
@@ -803,6 +826,7 @@
       habitRow('🍺 술 마신 다음 날', bp.filter((r) => has(shiftDate(r.date, -1), '술')), bp.filter((r) => !has(shiftDate(r.date, -1), '술')), '다음 날', '그 외', '기록 탭에서 술 마신 날 🍺를 눌러 두세요.') +
       habitRow('☕ 커피 2잔 이상 마신 날', bp.filter((r) => has(r.date, '커피')), bp.filter((r) => !has(r.date, '커피')), '마신 날', '그 외', '기록 탭에서 ☕를 눌러 두세요.') +
       med +
+      habitRow('💪 근력 운동한 다음 날', bp.filter((r) => has(shiftDate(r.date, -1), '근력')), bp.filter((r) => !has(shiftDate(r.date, -1), '근력')), '다음 날', '그 외', '러닝 탭에서 근력 세트를 기록해 두세요.') +
       habitRow('🚬 담배 피운 날', bp.filter((r) => has(r.date, '흡연')), bp.filter((r) => !has(r.date, '흡연')), '피운 날', '안 피운 날', '기록 탭에서 🚬를 눌러 두세요.') +
       '<div class="medrow"><span class="d2" style="margin:0;width:100%">소염제를 매일 드신다면 먹는 기간:</span><input id="med-start" type="date" value="' + (ms || '') + '" max="' + todayStr() + '"><span>~</span><input id="med-end" type="date" value="' + (prefs().med_end || '') + '"><button id="med-save">저장</button>' +
       (ms ? '<button id="med-clear" style="background:none;color:var(--red);text-decoration:underline;padding:0 4px">지우기</button>' : '') + '</div>' +
@@ -878,7 +902,7 @@
         const r = state.records.find((x) => x.date === d) || {}, it = intake[d];
         return '<tr class="row' + (d === state.date ? ' on' : '') + '" data-date="' + esc(d) + '">' +
           '<td>' + esc(d.slice(5).replace('-', '.')) + (r.pain ? ' <span title="통증" style="color:var(--amber)">●</span>' : '') +
-            parseChecks(checksOf(d)).map((k) => ({ 술: '🍺', 커피: '☕', 소염제: '💊', 흡연: '🚬' })[k] || '').join('') + '</td>' +
+            parseChecks(checksOf(d)).map((k) => ({ 술: '🍺', 커피: '☕', 소염제: '💊', 흡연: '🚬', 근력: '💪' })[k] || '').join('') + '</td>' +
           '<td class="bp">' + (r.systolic != null ? r.systolic + '/' + r.diastolic : '–') + '</td>' +
           '<td class="num">' + (r.weight_kg != null ? Number(r.weight_kg).toFixed(1) : '–') + '</td>' +
           '<td class="num">' + (r.run_km ? Number(r.run_km).toFixed(1) : '–') + '</td>' +
@@ -1527,6 +1551,33 @@
         '<button class="x" data-delcourse="' + esc(c.id) + '">삭제</button></div>').join('')
       : '';
   }
+  // GPX 파일(다른 앱·다른 사람이 공유한 코스) → 내 코스
+  function parseGpx(text) {
+    const doc = new DOMParser().parseFromString(text, 'application/xml');
+    if (doc.querySelector('parsererror')) throw new Error('GPX 파일을 읽지 못했어요');
+    let nodes = Array.from(doc.getElementsByTagName('trkpt'));
+    if (!nodes.length) nodes = Array.from(doc.getElementsByTagName('rtept'));
+    if (!nodes.length) nodes = Array.from(doc.getElementsByTagName('wpt'));
+    const pts = nodes.map((n) => [Number(n.getAttribute('lat')), Number(n.getAttribute('lon'))]).filter((p) => isFinite(p[0]) && isFinite(p[1]) && Math.abs(p[0]) <= 90);
+    if (pts.length < 2) throw new Error('GPX 파일에 경로 점이 없어요');
+    const nm = doc.getElementsByTagName('name')[0];
+    let km = 0; for (let i = 1; i < pts.length; i++) km += haversineKm(pts[i - 1], pts[i]);
+    return { name: nm ? nm.textContent.trim() : '', pts, km };
+  }
+  $('c-gpx').addEventListener('change', async (e) => {
+    const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+    try {
+      const g = parseGpx(await f.text());
+      let pts = g.pts;
+      if (pts.length > 400) { const step = (pts.length - 1) / 399; pts = Array.from({ length: 400 }, (_, k) => pts[Math.round(k * step)]); }
+      const name = prompt('코스 이름을 정해 주세요 (' + g.km.toFixed(2) + 'km)', (g.name || f.name.replace(/\.gpx$/i, '')).slice(0, 30));
+      if (!name || !name.trim()) return;
+      state.courses = await call('apiSaveCourse', { name: name.trim(), km: Math.round(g.km * 100) / 100, points: pts.map((p) => [Math.round(p[0] * 1e5) / 1e5, Math.round(p[1] * 1e5) / 1e5]) });
+      saveCache(); renderCourseList(); if (state.tab === 'run') renderRunTab();
+      if (course.map) { const ll = pts.map((p) => [p[0], p[1]]); course.map.fitBounds(L.latLngBounds(ll), { padding: [20, 20] }); }
+      toast('"' + name.trim() + '" 코스(' + g.km.toFixed(2) + 'km)를 저장했어요');
+    } catch (err) { toast(errMsg(err)); }
+  });
   async function openCoursePanel() {
     $('course-panel').hidden = false; document.body.style.overflow = 'hidden';
     $('c-walk').checked = !!state.settings.hasKakaoKey; $('c-walk').disabled = !state.settings.hasKakaoKey;
@@ -1644,7 +1695,8 @@
     if (run.me) run.me.setLatLng([pt[0], pt[1]]);
     if (run.map && run.follow) run.map.setView([pt[0], pt[1]], Math.max(run.map.getZoom(), 16), { animate: false });
     if (run.state !== 'running') { renderRun(); return; }
-    if (run.acc > 35) { renderRun(); return; } // 정확도가 낮은 점은 버립니다
+    if (run.acc > 50) { renderRun(); return; } // 정확도가 아주 낮은 점은 버립니다
+    smoothPoint(pt, run.acc);                  // 칼만 필터로 튀는 좌표를 부드럽게
     if (run.last) {
       const d = haversineKm(run.last, pt), dt = Math.max(1, (pt[2] - run.last[2]) / 1000), kmh = d / dt * 3600;
       if (d < 0.005) { renderRun(); return; }        // 5m 미만 흔들림은 무시
@@ -1653,6 +1705,19 @@
     }
     run.last = pt; run.pts.push(pt);
     renderRun(); persistRun();
+  }
+  // 칼만 필터: 정확도(m)가 나쁠수록 새 좌표를 덜 믿고, 앞의 흐름을 더 믿습니다
+  function smoothPoint(pt, acc) {
+    const Q = 3; // 사람이 달리는 속도 변화 (m/s)
+    const a = Math.max(acc || 10, 3);
+    const k = run.kf;
+    if (!k || !run.last) { run.kf = { lat: pt[0], lng: pt[1], v: a * a, t: pt[2] }; return; }
+    const dt = Math.max(0, (pt[2] - k.t) / 1000);
+    k.v += dt * Q * Q;
+    const K = k.v / (k.v + a * a);
+    k.lat += K * (pt[0] - k.lat); k.lng += K * (pt[1] - k.lng);
+    k.v = (1 - K) * k.v; k.t = pt[2];
+    pt[0] = k.lat; pt[1] = k.lng;
   }
   function onGpsError(e) {
     run.acc = null;
@@ -1686,7 +1751,7 @@
     if (!myWeight()) toast('체중 기록이 없어 70kg 기준으로 칼로리를 계산합니다');
     renderRun(); persistRun();
   }
-  function pauseRun() { tick(); run.state = 'paused'; run.last = null; run.pts.push(null); releaseAwake(); renderRun(); persistRun(); }
+  function pauseRun() { tick(); run.state = 'paused'; run.last = null; run.kf = null; run.pts.push(null); releaseAwake(); renderRun(); persistRun(); }
   function resumeRun() { run.state = 'running'; run.lastTick = Date.now(); keepAwake(); renderRun(); persistRun(); }
   function stopRun() { tick(); run.state = 'done'; stopWatch(); clearInterval(run.timer); releaseAwake(); renderRun(); persistRun(); }
   function resetRun() {
@@ -1837,6 +1902,7 @@
       (p.done ? '' :
         '<div class="tip"><b>이번 주 러닝 ' + p.weekKm + 'km</b>지금까지 ' + doneKm.toFixed(1) + 'km. 위 링의 주간 목표도 이 거리로 맞췄어요.' +
           (p.planKm > p.weekKm ? ' 목표대로라면 주 ' + p.planKm + 'km가 필요하지만, 다치지 않게 매주 조금씩(10%) 늘려 갈게요.' : '') + '</div>' +
+        '<div class="tip"><b>근력(버티기) 주 3회 · 이번 주 ' + strengthDaysThisWeek() + '회</b>벽 스쿼트 2분 × 4세트. 혈압을 낮추고, 살 빼는 동안 근육이 빠지지 않게 지켜 줘요.</div>' +
         '<div class="tip"><b>하루 ' + p.foodKcal + 'kcal 덜 먹기</b>밥 1/3공기(약 100kcal)나 국물·간식을 줄이면 돼요. 감량의 60%는 식사, 40%는 러닝 몫이에요.</div>') +
       (p.tooFast ? '<div class="tip warn"><b>목표가 조금 빨라요</b>건강하게 빼려면 주 ' + p.rate.toFixed(1) + 'kg 이하가 좋아요. 이 속도면 ' + esc(prettyDate(p.safeDate)) + ' 무렵 도착해요. 코치는 안전한 속도로 계산했어요.</div>' : '') +
       (!p.cur ? '<div class="tip warn"><b>체중을 기록해 주세요</b>기록 탭에 체중을 적으면 진행률이 자동으로 바뀌어요.</div>' : '') +
@@ -2043,13 +2109,30 @@
         (Math.abs(total - main) >= 0.01 ? ' · 하루 합계 ' + total.toFixed(2) + 'km' : '') : '워치·직접 입력';
       return '<div class="act"><div class="route">' + routeSvg(g && g.points) + '</div><div><div class="t">' + esc(prettyDate(r.date)) + (g && g.started_at ? ' ' + esc(cleanClock(g.started_at)) : '') + '</div>' +
         '<div class="main">' + main.toFixed(2) + ' km</div><div class="t">' + sub + '</div>' +
-        (g && g.points && g.points.filter(Boolean).length > 1 ? (savedAsCourse(g) ? '<div class="t" style="color:var(--teal)">✓ 내 코스에 있어요</div>' : '<button class="tocourse" data-run="' + esc(g.id) + '">＋ 내 코스로 저장</button>') : '') +
+        (g && g.points && g.points.filter(Boolean).length > 1 ? (savedAsCourse(g) ? '<div class="t" style="color:var(--teal)">✓ 내 코스에 있어요</div>' : '<button class="tocourse" data-run="' + esc(g.id) + '">＋ 내 코스로 저장</button>') + '<button class="gpx-btn" data-gpx="' + esc(g.id) + '">GPX ↓</button>' : '') +
         '</div></div>';
     }).join('');
   }
   // 시트가 시각으로 바꿔 둔 '1899-12-30 06:28' → '6:28'
   function cleanClock(v) { return String(v || '').replace(/^1899-12-3[01][ T]/, '').replace(/^0(\d:)/, '$1'); }
   function savedAsCourse(g) { let ids = []; try { ids = JSON.parse(localStorage.getItem('bp_run2course') || '[]'); } catch (_) {} return ids.includes(String(g.id)) && (state.courses || []).some((c) => Math.abs(Number(c.km) - Number(g.km)) < 0.01); }
+  function toGpx(name, pts, startIso) {
+    const t0 = startIso ? Date.parse(startIso) : null;
+    const seg = pts.filter(Boolean).map((p) => '<trkpt lat="' + p[0].toFixed(6) + '" lon="' + p[1].toFixed(6) + '">' +
+      (p[2] && p[2] > 1e12 ? '<time>' + new Date(p[2]).toISOString() + '</time>' : '') + '</trkpt>').join('\n');
+    return '<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="BP" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><name>' + esc(name) + '</name>' +
+      (t0 ? '<time>' + new Date(t0).toISOString() + '</time>' : '') + '</metadata>\n<trk><name>' + esc(name) + '</name><type>running</type><trkseg>\n' + seg + '\n</trkseg></trk>\n</gpx>\n';
+  }
+  function downloadText(filename, text, type) {
+    const blob = new Blob([text], { type: type || 'application/gpx+xml' }), url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+  $('run-acts').addEventListener('click', (e) => {
+    const gb = e.target.closest('[data-gpx]'); if (!gb) return;
+    const g = (state.runs || []).find((x) => String(x.id) === gb.dataset.gpx); if (!g) return;
+    downloadText('run-' + g.date + '-' + Number(g.km).toFixed(1) + 'km.gpx', toGpx(g.date + ' 러닝 ' + Number(g.km).toFixed(2) + 'km', g.points || [], g.started_at && /^\d{4}/.test(g.started_at) ? g.started_at : null));
+    toast('GPX 파일을 만들었어요. 스트라바·가민 등에 올릴 수 있어요');
+  });
   $('run-acts').addEventListener('click', async (e) => {
     const b = e.target.closest('.tocourse'); if (!b) return;
     const g = (state.runs || []).find((x) => String(x.id) === b.dataset.run); if (!g) return;
@@ -2078,7 +2161,68 @@
       tile(year + '년 누적', yearKm.toFixed(1) + '<small> km</small>', runDays.filter((r) => r.date.startsWith(year)).length + '일 뛰었어요') +
       tile('앱·워치 러닝', gps.length + '<small> 회</small>', gps.length ? '평균 ' + (gps.reduce((a, r) => a + r.km, 0) / gps.length).toFixed(1) + 'km' : '시간까지 기록된 러닝');
   }
-  function renderRunTab() { renderRunHero(); renderRunGate(); renderCoach(); renderRunActs(); renderBody(); renderPRs(); }
+  // ───── 근력 · 버티기 (등척성 운동: 2분 버티기 × 4, 사이 2분 쉬기, 주 3회) ─────
+  const ST_EX = [['벽 스쿼트', '벽에 등을 대고 무릎 90°로 앉은 자세로 버티기'], ['플랭크', '팔꿈치와 발끝으로 몸을 일자로 버티기'], ['스쿼트', '천천히 앉았다 일어나기 15회'], ['팔굽혀펴기', '무릎 대고 해도 좋아요 10회']];
+  const st = { ex: 0, phase: 'idle', left: 0, set: 0, timer: null, sets: 4, hold: 120, rest: 120 };
+  function strengthSets(date) { const m = String(checksOf(date)).match(/근력(?::(\d+))?/); return m ? Number(m[1] || 1) : 0; }
+  function strengthDaysThisWeek() { const mon = mondayOf(todayStr()); let n = 0; for (let i = 0; i < 7; i++) if (strengthSets(shiftDate(mon, i))) n++; return n; }
+  function addStrengthSet(n) {
+    const today = todayStr(), cur = strengthSets(today), next = Math.max(0, Math.min(80, cur + n));
+    const list = String(checksOf(today)).split(',').filter((x) => x && x.split(':')[0] !== '근력');
+    if (next) list.push('근력:' + next);
+    setChecks(today, list.join(','));
+  }
+  function beep(ms, f) {
+    try { const C = window.AudioContext || window.webkitAudioContext; st.ac = st.ac || new C(); const o = st.ac.createOscillator(), g = st.ac.createGain();
+      o.frequency.value = f || 880; o.connect(g); g.connect(st.ac.destination); g.gain.value = 0.2; o.start(); o.stop(st.ac.currentTime + (ms || 300) / 1000); } catch (_) {}
+    try { navigator.vibrate && navigator.vibrate(ms || 300); } catch (_) {}
+  }
+  function stTick() {
+    st.left--;
+    if (st.left <= 3 && st.left > 0) beep(120, 660);
+    if (st.left <= 0) {
+      if (st.phase === 'hold') {
+        st.set++; addStrengthSet(1); beep(500, 990);
+        if (st.set >= st.sets) { stStop(true); return; }
+        st.phase = 'rest'; st.left = st.rest;
+      } else { st.phase = 'hold'; st.left = st.hold; beep(500, 880); }
+    }
+    renderStrength();
+  }
+  function stStop(done) {
+    clearInterval(st.timer); st.timer = null; st.phase = 'idle'; releaseAwake();
+    if (done) toast('오늘 버티기 ' + st.set + '세트 끝! 수고하셨어요 💪');
+    renderStrength();
+  }
+  function renderStrength() {
+    const days = strengthDaysThisWeek(), today = strengthSets(todayStr()), g = runGate();
+    const mm = (x) => Math.floor(x / 60) + ':' + ('0' + (x % 60)).slice(-2);
+    const timed = st.ex <= 1;
+    let timer;
+    if (st.phase === 'idle') timer = '<div class="st-timer"><div class="ph">' + esc(ST_EX[st.ex][0]) + '</div><div class="t">' + (timed ? mm(st.hold) : '×' + st.sets) + '</div><div class="s">' + esc(ST_EX[st.ex][1]) + (timed ? ' · ' + mm(st.hold) + ' 버티기 → ' + mm(st.rest) + ' 쉬기 × ' + st.sets + '세트' : '') + '</div></div>';
+    else timer = '<div class="st-timer"><div class="ph' + (st.phase === 'rest' ? ' rest' : '') + '">' + (st.phase === 'hold' ? '버티기 ' + (st.set + 1) + '/' + st.sets + ' · 숨 계속 쉬기!' : '쉬기 · 다음 ' + (st.set + 1) + '/' + st.sets + '세트') + '</div><div class="t">' + mm(Math.max(0, st.left)) + '</div><div class="s">' + esc(ST_EX[st.ex][0]) + '</div></div>';
+    $('strength').innerHTML =
+      '<div class="st-top"><span class="st-week">이번 주 <b>' + days + '</b> / 3회</span><span class="st-week">오늘 ' + today + '세트</span></div>' +
+      '<div class="st-dots">' + [0, 1, 2].map((i) => '<i' + (i < days ? ' class="on"' : '') + '></i>').join('') + '</div>' +
+      (st.phase === 'idle' ? '<div class="st-ex">' + ST_EX.map((e, i) => '<button data-ex="' + i + '"' + (i === st.ex ? ' class="on"' : '') + '>' + e[0] + '</button>').join('') + '</div>' : '') +
+      timer +
+      '<div class="st-btns">' + (st.phase === 'idle'
+        ? (timed ? '<button class="go" id="st-go"' + (g.level === 'stop' ? ' disabled' : '') + '>▶ 타이머 시작</button>' : '') + '<button id="st-plus">＋ 1세트 기록</button>'
+        : '<button id="st-skip">' + (st.phase === 'rest' ? '쉬기 건너뛰기' : '이 세트 끝') + '</button><button id="st-stop">그만하기</button>') + '</div>' +
+      (today ? '<button id="st-minus" class="sub" style="color:var(--mute);text-decoration:underline">오늘 세트 하나 빼기</button>' : '') +
+      '<p class="sub" style="font-size:12px">버티는 동안 <b>숨을 참지 마세요.</b> ' + (g.level === 'stop' ? '<b style="color:var(--red)">오늘은 혈압이 높아 쉬세요.</b> ' : '혈압이 160/100 이상인 날은 쉬고, ') + '허리·무릎이 아프면 그 동작은 빼세요. 처음이라면 의사와 상의 후 시작하세요.</p>';
+  }
+  $('strength').addEventListener('click', (e) => {
+    const t = e.target.closest('button'); if (!t) return;
+    if (t.dataset.ex) { st.ex = Number(t.dataset.ex); renderStrength(); return; }
+    if (t.id === 'st-plus') { addStrengthSet(1); toast('근력 1세트 기록했어요'); setTimeout(renderStrength, 0); return; }
+    if (t.id === 'st-minus') { addStrengthSet(-1); setTimeout(renderStrength, 0); return; }
+    if (t.id === 'st-go') { st.phase = 'hold'; st.left = st.hold; st.set = 0; beep(400, 880); keepAwake(); clearInterval(st.timer); st.timer = setInterval(stTick, 1000); renderStrength(); return; }
+    if (t.id === 'st-skip') { st.left = 1; stTick(); return; }
+    if (t.id === 'st-stop') { stStop(st.set > 0); return; }
+  });
+
+  function renderRunTab() { renderRunHero(); renderRunGate(); renderCoach(); renderStrength(); renderRunActs(); renderBody(); renderPRs(); }
 
   // ───── 진료용 요약 ─────
   function reportRows() {
@@ -2087,7 +2231,7 @@
       const r = recOf(d) || {}, it = intake[d];
       if (!r.date && !it) continue;
       out.push({ date: d, bp: r.systolic != null ? r.systolic + '/' + r.diastolic : '', pulse: r.pulse ?? '', weight: r.weight_kg ?? '',
-        run: r.run_km || '', sodium: it ? Math.round(it.sodium) : '', pain: (r.pain || '').replace(/:1/g, '(뻐근)').replace(/:2/g, '(아픔)'), memo: [parseChecks(r.checks).map((k) => k === '커피' ? '커피2잔+' : k === '흡연' ? '흡연' + (smokeCount(r.checks) ? smokeCount(r.checks) + '개비' : '') : k).join('·'), r.memo].filter(Boolean).join(' / ') });
+        run: r.run_km || '', sodium: it ? Math.round(it.sodium) : '', pain: (r.pain || '').replace(/:1/g, '(뻐근)').replace(/:2/g, '(아픔)'), memo: [parseChecks(r.checks).map((k) => k === '커피' ? '커피2잔+' : k === '흡연' ? '흡연' + (smokeCount(r.checks) ? smokeCount(r.checks) + '개비' : '') : k === '근력' ? '근력' + ((String(r.checks).match(/근력:(\d+)/) || [])[1] || '') + '세트' : k).join('·'), r.memo].filter(Boolean).join(' / ') });
     }
     return out;
   }

@@ -286,6 +286,24 @@
   /* 알림 설정 */
   .bell { width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--hair); background: var(--surface); display: grid; place-items: center; margin-left: auto; margin-right: 8px; }
   .bell[hidden] { display: none; }
+  .bud-head { font-size: 17px; font-weight: 800; line-height: 1.45; }
+  .bud-head em { font-style: normal; color: var(--teal); }
+  .bud-head em.over { color: var(--red); }
+  .bud-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0 4px; }
+  .bud-bars .k { font-size: 12px; color: var(--mute); display: flex; justify-content: space-between; }
+  .bud-bars .bar { height: 8px; border-radius: 5px; background: var(--hair); margin-top: 5px; overflow: hidden; }
+  .bud-bars .bar i { display: block; height: 100%; border-radius: 5px; }
+  .recs { display: flex; gap: 10px; overflow-x: auto; margin: 12px -16px 0; padding: 0 16px 6px; scroll-snap-type: x mandatory; }
+  .rec { flex: 0 0 78%; max-width: 300px; scroll-snap-align: start; background: var(--surface); border: 1px solid var(--hair); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+  .rec .tag { font-size: 11px; font-weight: 700; color: var(--teal); }
+  .rec .tag.out { color: var(--amber); }
+  .rec b { font-size: 16px; }
+  .rec .items { font-size: 13px; color: var(--mute); line-height: 1.5; }
+  .rec .nums { font-size: 14px; font-weight: 700; }
+  .rec .tip { font-size: 12px; color: var(--mute); line-height: 1.45; }
+  .rec .btns { display: flex; gap: 6px; margin-top: auto; padding-top: 4px; }
+  .rec .btns button { flex: 1; height: 36px; border-radius: 10px; font-size: 13px; font-weight: 700; border: 1px solid var(--teal); color: var(--teal); background: transparent; }
+  .rec .btns button.fill { background: var(--teal); color: #fff; }
   .photo-btn { display: flex; align-items: center; justify-content: center; gap: 6px; height: 48px; margin: 12px 0 10px; border-radius: 14px; border: 1.5px dashed var(--teal); color: var(--teal); font-weight: 700; font-size: 16px; cursor: pointer; }
   .photo-btn.busy { opacity: .6; pointer-events: none; }
   #photo-note:not(:empty) { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; padding: 10px 12px; border-radius: 12px; background: var(--panel); font-size: 13px; line-height: 1.5; color: var(--mute); }
@@ -440,6 +458,9 @@
 
   <!-- 식사 -->
   <div id="tab-meal" class="tab">
+    <section class="block" id="budget-wrap">
+      <div id="budget"></div>
+    </section>
     <section class="block">
       <div class="seg" id="meal-seg"></div>
       <label class="photo-btn" id="photo-btn"><input type="file" id="photo-in" accept="image/*" hidden>📷 밥상 사진으로 입력</label>
@@ -675,6 +696,7 @@
     $('datepick').style.visibility = name === 'record' || name === 'meal' ? 'visible' : 'hidden';
     $('page-title').textContent = TAB_TITLES[name] || '혈압 관리';
     $('open-settings').hidden = name !== 'record';
+    if (name === 'meal') renderBudget();
     if (name === 'trend') { renderStats(); renderHealth(); renderHabits(); renderCharts(); }
     if (name === 'run') renderRunTab();
     if (name === 'food' && !state.searched) autoSearch();
@@ -838,7 +860,8 @@
     const cell = (k, v, extra) => '<span data-go="' + (/러닝|몸/.test(k) ? 'run' : 'meal') + '"><span class="k">' + k + '</span><br>' + v + (extra || '') + '</span>';
     $('today-strip').innerHTML =
       cell('먹은 것', it ? '<b>' + fmtN(it.kcal) + '</b> kcal' : '<b>–</b>') +
-      cell('나트륨', it ? '<b style="color:' + sodiumColor(it.sodium) + '">' + fmtN(it.sodium) + '</b> mg' : '<b>–</b>',
+      cell('나트륨', it ? '<b style="color:' + sodiumColor(it.sodium) + '">' + fmtN(it.sodium) + '</b> mg' +
+          (state.date === todayStr() ? '<br><span class="k">' + (it.sodium <= SODIUM_GOAL ? '남은 ' + fmtN(SODIUM_GOAL - it.sodium) : fmtN(it.sodium - SODIUM_GOAL) + ' 초과') + '</span>' : '') : '<b>–</b>',
         it ? '<div class="meter"><i style="width:' + Math.min(100, it.sodium / SODIUM_GOAL * 100) + '%;background:' + sodiumColor(it.sodium) + '"></i></div>' : '') +
       cell('러닝', r.run_km ? '<b>' + Number(r.run_km).toFixed(1) + '</b> km' : '<b>–</b>') +
       (pain ? cell('몸 상태', '<b style="font-size:14px;color:var(--amber)">' + esc(pain) + '</b>') : '');
@@ -1108,7 +1131,87 @@
     btn.disabled = false; btn.textContent = '식사 추가';
   });
 
+  // ───── 오늘 남은 양 + 다음 끼니 추천 ─────
+  // 칼로리 목표(추정): 유지 칼로리 ≈ 체중×28kcal, 체중 목표가 있으면 코치의 '하루 덜 먹기'만큼 뺌
+  function kcalTarget() {
+    const w = latestWeight(), kg = w ? w.kg : null;
+    if (!kg) return null;
+    const keep = Math.round(kg * 28 / 50) * 50, p = coachPlan();
+    return Math.max(1500, keep - (p && !p.done ? p.foodKcal : 0));
+  }
+  const MENU_IDEAS = [
+    { name: '생선구이 밥상', text: '공기밥 1공기, 고등어구이 1토막, 나물 1접시, 상추 1접시', when: '점심저녁', tip: '간장 대신 레몬이나 와사비 조금.' },
+    { name: '두부 밥상', text: '현미밥 1공기, 두부부침 1인분, 계란찜 1인분, 상추 1접시', when: '점심저녁', tip: '두부부침은 양념장 없이 소금 한 꼬집만.' },
+    { name: '연어 쌈밥', text: '공기밥 1공기, 연어 1접시, 상추 1접시, 김 1봉', when: '점심저녁', tip: '김은 조미김 대신 구운 김이면 더 좋아요.' },
+    { name: '삼겹살 쌈 (쌈장 조금)', text: '삼겹살 1인분, 상추 1접시, 공기밥 0.5공기', when: '저녁', tip: '쌈장 대신 마늘·고추·깻잎으로. 칼로리는 높은 편이에요.' },
+    { name: '닭가슴살 샐러드', text: '닭가슴살샐러드 1그릇, 고구마 1개', when: '점심저녁', tip: '드레싱은 반만.' },
+    { name: '가벼운 한 끼', text: '고구마 2개, 삶은계란 2개, 우유 1잔, 사과 1개', when: '아침저녁', tip: '퇴근이 늦은 날에도 좋아요.' },
+    { name: '오트밀 아침', text: '오트밀 1그릇, 바나나 1개, 견과류 1줌, 우유 1잔', when: '아침', tip: '나트륨이 거의 없어요.' },
+    { name: '두부 계란 아침', text: '두부 0.5모, 계란후라이 2개, 방울토마토 1접시, 현미밥 0.5공기', when: '아침', tip: '' },
+    { name: '누룽지 아침', text: '누룽지 1, 삶은계란 2개, 귤 2개', when: '아침', tip: '누룽지는 간 없이 끓여서.' },
+    { name: '샤브샤브', text: '샤브샤브 1인분', when: '점심저녁', out: 'shabu', tip: '육수는 마시지 말고, 마지막 칼국수·죽은 생략.' },
+    { name: '월남쌈', text: '월남쌈 1인분', when: '점심저녁', out: 'shabu', tip: '소스는 찍지 말고 살짝 묻히기.' },
+    { name: '생선구이 백반', text: '공기밥 1공기, 고등어구이 1토막, 된장국 1그릇 국물 다 남김, 나물 1접시, 김치 0.5접시', when: '점심저녁', out: 'fish', tip: '국은 건더기만, 김치는 두세 젓가락.' },
+    { name: '비빔밥 (고추장 반)', text: '비빔밥 1그릇', when: '점심저녁', out: 'bibim', tip: '고추장을 따로 받아 반만 넣으면 400mg쯤 줄어요.' },
+    { name: '포케·샐러드', text: '포케 1그릇', when: '점심저녁', out: 'salad', tip: '드레싱은 따로 받아 반만.' },
+    { name: '쌈밥', text: '공기밥 1공기, 불고기 1인분, 상추 1접시', when: '점심저녁', out: 'tofu', tip: '쌈장은 조금, 된장찌개 국물은 남기기.' },
+  ];
+  function ideaNums(idea) {
+    if (!idea._items || idea._v !== state.foods.length) {
+      idea._items = splitFoods(idea.text).map(parseOne).map(estimate); idea._v = state.foods.length;
+    }
+    const unknown = idea._items.some((it) => it.kcal === '' || it.kcal == null); // 사전에 없는 음식이 있으면 추천에서 뺌
+    return { unknown, kcal: idea._items.reduce((a, it) => a + (Number(it.kcal) || 0), 0), na: idea._items.reduce((a, it) => a + (Number(it.sodium_mg) || 0), 0) };
+  }
+  function nextMealName() { const h = new Date().getHours(); return h < 10 ? '아침' : h < 15 ? '점심' : h < 21 ? '저녁' : '내일 아침'; }
+  function renderBudget() {
+    const wrap = $('budget-wrap');
+    if (state.date !== todayStr()) { wrap.hidden = true; return; }
+    wrap.hidden = false;
+    const list = state.meals.filter((m) => m.date === state.date);
+    const k = list.reduce((a, m) => a + (m.kcal || 0), 0), n = list.reduce((a, m) => a + (m.sodium_mg || 0), 0);
+    const kt = kcalTarget(), next = nextMealName(), tomorrow = next === '내일 아침';
+    const leftN = SODIUM_GOAL - n, leftK = kt ? kt - k : null;
+    const bar = (used, goal, col) => '<div class="bar"><i style="width:' + Math.min(100, used / goal * 100) + '%;background:' + col + '"></i></div>';
+    let head;
+    if (tomorrow) head = '오늘은 끝! ' + (leftN >= 0 ? '나트륨 <em>목표 안</em>에서 드셨어요 👍' : '나트륨이 <em class="over">' + fmtN(-leftN) + 'mg</em> 넘었어요. 내일은 국물부터 줄여 봐요.');
+    else if (leftN <= 0) head = '나트륨을 이미 <em class="over">' + fmtN(-leftN) + 'mg</em> 넘었어요.<br>' + next + '은 아래처럼 <em>국물·김치 없이</em> 드세요.';
+    else head = next + '에 나트륨 <em>' + fmtN(leftN) + 'mg</em>' + (leftK != null ? ' · <em' + (leftK < 0 ? ' class="over"' : '') + '>' + (leftK >= 0 ? fmtN(leftK) + 'kcal' : fmtN(-leftK) + 'kcal 초과') + '</em>' : '') + ' 남았어요.';
+    // 추천: 이번 끼니에 맞는 것 중 남은 양 안에 드는 것 먼저, 그다음 나트륨 적은 순
+    const meal = tomorrow ? '아침' : next;
+    const budgetN = Math.max(leftN, 0), budgetK = leftK == null ? 9999 : Math.max(leftK, 0);
+    const cands = MENU_IDEAS.filter((x) => x.when.includes(meal)).map((x) => Object.assign({ idea: x }, ideaNums(x)))
+      .filter((c) => !c.unknown)
+      .map((c) => Object.assign(c, { fits: c.na <= Math.max(budgetN, 300) && c.kcal <= budgetK + 150 }))
+      .sort((a, b) => (b.fits - a.fits) || (a.na - b.na));
+    const pick = cands.filter((c) => !c.idea.out).slice(0, 3).concat(cands.filter((c) => c.idea.out).slice(0, 2));
+    const card = (c) => '<div class="rec"><span class="tag' + (c.idea.out ? ' out' : '') + '">' + (c.idea.out ? '🍽 외식' : '🏠 집밥') + (c.fits ? '' : ' · 남은 양보다 조금 많아요') + '</span>' +
+      '<b>' + esc(c.idea.name) + '</b><span class="items">' + esc(c.idea.text.replace(/ 국물 다 남김/, '(국물 남기기)')) + '</span>' +
+      '<span class="nums">' + fmtN(c.kcal) + 'kcal · 나트륨 <span style="color:' + sodiumColor(c.na * 2) + '">' + fmtN(c.na) + 'mg</span></span>' +
+      (c.idea.tip ? '<span class="tip">' + esc(c.idea.tip) + '</span>' : '') +
+      '<div class="btns"><button class="fill" data-use="' + MENU_IDEAS.indexOf(c.idea) + '">이걸로 기록</button>' +
+      (c.idea.out ? '<button data-near="' + c.idea.out + '">근처 식당</button>' : '') + '</div></div>';
+    $('budget').innerHTML = '<div class="bud-head">' + head + '</div>' +
+      '<div class="bud-bars"><div><div class="k"><span>나트륨</span><span>' + fmtN(n) + ' / ' + fmtN(SODIUM_GOAL) + 'mg</span></div>' + bar(n, SODIUM_GOAL, sodiumColor(n)) + '</div>' +
+      '<div><div class="k"><span>칼로리</span><span>' + (kt ? fmtN(k) + ' / ' + fmtN(kt) : fmtN(k) + ' kcal') + '</span></div>' + (kt ? bar(k, kt, k > kt ? 'var(--red)' : 'var(--teal)') : '<div class="sub" style="margin:4px 0 0;font-size:11px">체중을 적으면 목표가 나와요</div>') + '</div></div>' +
+      '<div class="sub" style="margin:8px 0 0;font-weight:700;color:var(--ink)">' + (tomorrow ? '내일 아침' : next) + ' 추천</div>' +
+      '<div class="recs">' + pick.map(card).join('') + '</div>' +
+      (kt ? '<p class="sub" style="font-size:11px;margin-top:4px">칼로리 목표 ' + fmtN(kt) + 'kcal는 체중×28로 잡은 추정치' + (coachPlan() && !coachPlan().done ? '에서 체중 코치의 "하루 ' + coachPlan().foodKcal + 'kcal 덜 먹기"를 뺀 값' : '') + '이에요.</p>' : '');
+  }
+  $('budget').addEventListener('click', (e) => {
+    const u = e.target.closest('[data-use]'), nr = e.target.closest('[data-near]');
+    if (u) {
+      const idea = MENU_IDEAS[Number(u.dataset.use)];
+      $('f-foods').value = idea.text; parseFoods();
+      const nm = nextMealName(); state.meal = nm === '내일 아침' ? '아침' : nm; renderMealSeg();
+      $('f-foods').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      toast('아래 양을 확인하고 [식사 추가]를 눌러 주세요');
+    }
+    if (nr) { state.theme = nr.dataset.near; showTab('food'); renderFoodTab(); runSearch(); }
+  });
+
   function renderMealDay() {
+    renderBudget();
     const list = state.meals.filter((m) => m.date === state.date);
     $('day-title').textContent = (state.date === todayStr() ? '오늘' : prettyDate(state.date)) + ' 먹은 것';
     const k = list.reduce((a, m) => a + (m.kcal || 0), 0), n = list.reduce((a, m) => a + (m.sodium_mg || 0), 0);

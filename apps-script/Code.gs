@@ -16,15 +16,18 @@ const CONFIG = {
   SHEET_RESTAURANTS: '식당',
   SHEET_COURSES: '코스',
   SHEET_RUNS: '러닝',
+  SHEET_HEALTH: '건강', // 워치·건강 앱 수치 (단축어가 매일 보냄)
   // 1행 제목(영문 키). 나중에 데이터베이스로 옮길 때 이 이름이 그대로 칸 이름이 됩니다.
   RECORD_COLUMNS: ['date', 'systolic', 'diastolic', 'pulse', 'weight_kg', 'run_km', 'memo', 'updated_at', 'pain', 'checks'],
   CHECK_ITEMS: ['술', '커피', '소염제', '흡연'], // 흡연은 '흡연:10'처럼 개비 수를 붙일 수 있음 // 혈압에 영향을 주는 생활 체크 (하루 단위)
   PAIN_PARTS: ['허리', '골반', '허벅지', '무릎', '종아리', '발목'], // 통증 체크 부위
-  VERSION: 5, // 화면이 이 값을 보고 서버가 새 기능을 지원하는지 확인합니다 (3: 목표 체중, 4: 생활 체크·약 시작일)
+  VERSION: 6, // 화면이 이 값을 보고 서버가 새 기능을 지원하는지 확인합니다 (3: 목표 체중, 4: 생활 체크·약 시작일, 5: 코스 저장, 6: 워치 수치·사진 칼로리)
   MEAL_COLUMNS: ['id', 'date', 'meal', 'food', 'matched', 'qty', 'unit', 'kcal', 'sodium_mg', 'source', 'created_at'],
   CUSTOM_FOOD_COLUMNS: ['name', 'unit', 'kcal', 'sodium_mg', 'updated_at'],
   RESTAURANT_COLUMNS: ['id', 'name', 'category', 'address', 'phone', 'tip', 'link', 'created_at'],
   COURSE_COLUMNS: ['id', 'name', 'km', 'points', 'created_at'],
+  HEALTH_COLUMNS: ['date', 'resting_hr', 'hrv_ms', 'vo2max', 'steps', 'active_kcal', 'sleep_h', 'updated_at'],
+  GEMINI_MODEL: 'gemini-2.5-flash', // 사진 칼로리용 무료 모델 (스크립트 속성 GEMINI_MODEL로 바꿀 수 있음)
   RUN_COLUMNS: ['id', 'date', 'started_at', 'km', 'duration_s', 'pace', 'kcal', 'points', 'source', 'created_at'],
   FRONTEND_URL: 'https://bluemankyh-hash.github.io/BP/', // 화면 주소 (스크립트 속성 FRONTEND_URL로 바꿀 수 있음)
   DEFAULT_CENTER: { lat: 35.5038, lng: 128.7466 }, // 밀양시청 부근
@@ -92,7 +95,7 @@ const API_FUNCS = {
   apiAddMeals: apiAddMeals, apiDeleteMeal: apiDeleteMeal,
   apiSaveRestaurant: apiSaveRestaurant, apiDeleteRestaurant: apiDeleteRestaurant,
   apiAddPlace: apiAddPlace, apiDeletePlace: apiDeletePlace, apiSearchRestaurants: apiSearchRestaurants,
-  apiSaveCourse: apiSaveCourse, apiRunToCourse: apiRunToCourse, apiDeleteCourse: apiDeleteCourse, apiWalkSegment: apiWalkSegment,
+  apiPhotoMeal: apiPhotoMeal, apiSaveCourse: apiSaveCourse, apiRunToCourse: apiRunToCourse, apiDeleteCourse: apiDeleteCourse, apiWalkSegment: apiWalkSegment,
   apiSaveRun: apiSaveRun, apiDeleteRun: apiDeleteRun, apiSetGoal: apiSetGoal, apiSetPref: apiSetPref,
   apiSetNotify: apiSetNotify, apiSendTest: apiSendTest, apiUnlinkKakao: apiUnlinkKakao,
 };
@@ -114,6 +117,7 @@ function setup() {
   ensureSheet_(ss, CONFIG.SHEET_RESTAURANTS, CONFIG.RESTAURANT_COLUMNS);
   ensureSheet_(ss, CONFIG.SHEET_COURSES, CONFIG.COURSE_COLUMNS);
   ensureSheet_(ss, CONFIG.SHEET_RUNS, CONFIG.RUN_COLUMNS);
+  ensureSheet_(ss, CONFIG.SHEET_HEALTH, CONFIG.HEALTH_COLUMNS);
   Logger.log('준비 완료: ' + ss.getName());
 }
 
@@ -128,9 +132,11 @@ function apiGetData() {
     restaurants: Repo.listRestaurants(),
     courses: Repo.listCourses(),
     runs: runsForApp_(),
+    health: Repo.listHealth().slice(-120),
     places: listPlaces_(),
     settings: {
       hasKakaoKey: !!props.getProperty('KAKAO_REST_KEY'),
+      hasGemini: !!props.getProperty('GEMINI_KEY'),
       center: CONFIG.DEFAULT_CENTER,
       version: CONFIG.VERSION,
       goal: getGoal_(), prefs: getPrefs_(),
@@ -514,6 +520,9 @@ function showMyLinks() {
   const t = encodeURIComponent(props.getProperty('ACTION_KEY'));
   Logger.log('④ 워치 단축어 - 러닝 거리 (끝의 km= 뒤에 숫자가 붙습니다):\n' + base + '?sc=run&t=' + t + '&km=');
   Logger.log('⑤ 워치 단축어 - 혈압:\n' + base + '?sc=bp&t=' + t + '&sys=');
+  Logger.log('⑥ 운동 시작 자동화:\n' + base + '?sc=wstart&t=' + t + '&tot=');
+  Logger.log('⑦ 운동 종료 자동화:\n' + base + '?sc=wend&t=' + t + '&tot=');
+  Logger.log('⑧ 매일 밤 건강 수치:\n' + base + '?sc=health&t=' + t);
 }
 
 function page_(title, bodyHtml) {
@@ -767,10 +776,123 @@ function handleShortcut_(p) {
       else note = '\n👍 좋아요.';
       return text('✅ ' + sys + '/' + dia + (pulse !== '' ? ' (맥박 ' + pulse + ')' : '') + ' 저장했어요' + note);
     }
+    if (p.sc === 'health') {
+      const map = { rhr: ['resting_hr', 25, 150], hrv: ['hrv_ms', 1, 300], vo2: ['vo2max', 10, 90], steps: ['steps', 0, 200000],
+        kcal: ['active_kcal', 0, 10000], sleep: ['sleep_h', 0, 24] };
+      const vals = {}, got = [];
+      Object.keys(map).forEach(function (k) {
+        const n = firstNum_(p[k]);
+        if (n === null) return;
+        let v = n;
+        if (k === 'sleep' && v > 24) v = v / 60; // 분으로 온 경우
+        if (v < map[k][1] || v > map[k][2]) return;
+        vals[map[k][0]] = Math.round(v * 10) / 10; got.push(k);
+      });
+      if (!got.length) return text('❌ 받은 수치가 없어요. 단축어의 주소 뒤 값들을 확인해 주세요.');
+      withLock_(function () { Repo.upsertHealth(date, vals); });
+      const label = { rhr: '안정 심박 ', hrv: 'HRV ', vo2: 'VO2max ', steps: '걸음 ', kcal: '활동 ', sleep: '수면 ' };
+      const unit = { rhr: '', hrv: 'ms', vo2: '', steps: '보', kcal: 'kcal', sleep: '시간' };
+      return text('✅ ' + date.slice(5) + ' 건강 수치 저장\n' + got.map(function (k) { return label[k] + vals[map[k][0]] + unit[k]; }).join(' · '));
+    }
+    if (p.sc === 'wstart') {
+      const tot = firstNum_(p.tot);
+      PropertiesService.getScriptProperties().setProperty('WORKOUT_START', JSON.stringify({ t: Date.now(), tot: tot === null ? null : tot, date: date }));
+      return text('▶ 운동 시작을 기록했어요');
+    }
+    if (p.sc === 'wend') {
+      const props = PropertiesService.getScriptProperties();
+      let st = null;
+      try { st = JSON.parse(props.getProperty('WORKOUT_START') || 'null'); } catch (e) { st = null; }
+      let km = firstNum_(p.km), min = firstNum_(p.min);
+      const tot = firstNum_(p.tot);
+      if (km === null && st && st.tot !== null && tot !== null) km = Math.round((tot - st.tot) * 100) / 100;
+      if (min === null && st) min = Math.round((Date.now() - st.t) / 600) / 100;
+      if (km === null) return text('❌ 운동 거리를 알 수 없어요. 운동 시작 자동화가 먼저 실행됐는지 확인해 주세요.');
+      if (km < 0.2) return text('… 거리가 ' + km + 'km라 저장하지 않았어요. 워치 기록이 아직 아이폰에 안 넘어왔을 수 있어요. 1~2분 뒤 단축어를 다시 실행해 보세요.');
+      if (!min || min < 1 || min > 600) min = null;
+      const res = saveWatchRun_(st && st.date ? st.date : date, km, min, firstNum_(p.cal));
+      props.deleteProperty('WORKOUT_START');
+      return text('✅ 워치 러닝 ' + km + 'km' + (min ? ' · ' + Math.round(min) + '분 · ' + res.pace + '/km' : '') + ' 저장했어요\n이번 주 ' + res.week + 'km');
+    }
     return text('❌ 모르는 명령이에요');
   } catch (err) {
     return text('❌ ' + (err && err.message || err));
   }
+}
+
+/** "8,532", "5.2 km", "62 회/분" 처럼 와도 첫 숫자만 꺼냅니다. */
+function firstNum_(v) {
+  if (v === undefined || v === null || v === '') return null;
+  const m = String(v).replace(/(\d),(\d{3})/g, '$1$2').match(/-?\d+(?:\.\d+)?/);
+  return m ? Number(m[0]) : null;
+}
+
+/** 워치 운동 결과를 러닝 기록으로 저장 (경로 없음) */
+function saveWatchRun_(date, km, min, cal) {
+  km = Math.round(km * 100) / 100;
+  const dur = min ? Math.round(min * 60) : '';
+  const paceS = dur ? Math.round(dur / km) : 0;
+  const run = {
+    id: 'run-' + Utilities.getUuid(), date: date, started_at: dur ? Utilities.formatDate(new Date(Date.now() - dur * 1000), 'Asia/Seoul', 'H:mm') : '',
+    km: km, duration_s: dur, pace: paceS ? Math.floor(paceS / 60) + ':' + ('0' + (paceS % 60)).slice(-2) : '',
+    kcal: cal !== null && cal !== undefined && cal > 0 && cal < 5000 ? Math.round(cal) : '', points: '[]', source: 'watch', created_at: nowText_(),
+  };
+  withLock_(function () { Repo.addRun(run); addRunKm_(date, km); });
+  const mon = mondayOf_(date);
+  const week = Repo.listRecords().filter(function (r) { return r.date >= mon && r.date <= date; }).reduce(function (a, r) { return a + (r.run_km || 0); }, 0);
+  return { pace: run.pace, week: Math.round(week * 10) / 10 };
+}
+
+// ───────── 사진으로 식사 입력 (Gemini 무료 API) ─────────
+/** 밥상 사진(base64 JPEG)을 받아 음식 목록을 돌려줍니다. 키는 스크립트 속성 GEMINI_KEY에만 둡니다. */
+function apiPhotoMeal(b64, mime) {
+  const props = PropertiesService.getScriptProperties();
+  const key = props.getProperty('GEMINI_KEY');
+  if (!key) throw new Error('사진 기능을 쓰려면 Apps Script 스크립트 속성에 GEMINI_KEY를 넣어 주세요.');
+  b64 = String(b64 || '').replace(/^data:[^,]+,/, '');
+  if (b64.length < 1000) throw new Error('사진을 읽지 못했어요. 다시 찍어 주세요.');
+  if (b64.length > 6000000) throw new Error('사진이 너무 커요.');
+  mime = /^image\/(jpeg|png|webp|heic)$/.test(mime || '') ? mime : 'image/jpeg';
+  const names = FOOD_TABLE.map(function (r) { return r[0].split('|')[0] + '(' + r[1] + ')'; }).join(', ');
+  const prompt = [
+    '한국 가정·식당 밥상 사진입니다. 사진에 실제로 보이는 음식만 골라, 한 사람이 먹는 양 기준으로 JSON만 답하세요.',
+    '음식 이름은 가능하면 다음 목록의 이름을 그대로 쓰고, 단위도 괄호 안 단위를 쓰세요: ' + names,
+    '반찬은 1접시 = 작은 종지 1인분입니다. 여럿이 나눠 먹는 큰 접시면 한 사람 몫으로 qty를 줄이세요(예: 0.5).',
+    '목록에 없는 음식은 일반적인 1인분 기준 kcal와 나트륨(mg)을 추정해 넣으세요.',
+    '형식: {"items":[{"name":"돼지국밥","qty":1,"unit":"그릇","kcal":600,"sodium_mg":2300}],"note":"짧은 한 줄 메모"}',
+  ].join('\n');
+  const model = props.getProperty('GEMINI_MODEL') || CONFIG.GEMINI_MODEL;
+  const res = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { 'x-goog-api-key': key },
+    payload: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mime, data: b64 } }] }],
+      generationConfig: { response_mime_type: 'application/json', temperature: 0.2 },
+    }),
+  });
+  const code = res.getResponseCode(), body = res.getContentText();
+  if (code === 429) throw new Error('오늘 무료 사용량을 다 썼어요. 내일 다시 쓰거나 글로 적어 주세요.');
+  if (code === 400 && /API key/i.test(body)) throw new Error('Gemini 키가 올바르지 않아요. 스크립트 속성 GEMINI_KEY를 확인해 주세요.');
+  if (code === 403) throw new Error('Gemini 사용 권한이 없어요. AI Studio에서 키를 다시 만들어 주세요.');
+  if (code !== 200) throw new Error('사진 분석에 실패했어요 (' + code + '). 잠시 뒤 다시 해 주세요.');
+  let out;
+  try {
+    const j = JSON.parse(body);
+    const t = (((j.candidates || [])[0] || {}).content || {}).parts;
+    const txt = (t || []).map(function (x) { return x.text || ''; }).join('').replace(/^```(?:json)?|```$/g, '').trim();
+    out = JSON.parse(txt);
+  } catch (e) { throw new Error('사진에서 음식을 알아보지 못했어요. 더 가까이 찍어 주세요.'); }
+  const items = (Array.isArray(out.items) ? out.items : []).slice(0, 15).map(function (it) {
+    const qty = Number(it.qty);
+    return {
+      name: String(it.name || '').trim().slice(0, 30), qty: isFinite(qty) && qty > 0 && qty <= 20 ? Math.round(qty * 100) / 100 : 1,
+      unit: String(it.unit || '').trim().slice(0, 6),
+      kcal: isFinite(Number(it.kcal)) && Number(it.kcal) >= 0 ? Math.round(Number(it.kcal)) : '',
+      sodium_mg: isFinite(Number(it.sodium_mg)) && Number(it.sodium_mg) >= 0 ? Math.round(Number(it.sodium_mg)) : '',
+    };
+  }).filter(function (it) { return it.name; });
+  if (!items.length) throw new Error('사진에서 음식을 찾지 못했어요.');
+  return { items: items, note: String(out.note || '').slice(0, 120) };
 }
 
 function mondayOf_(date) {
@@ -826,6 +948,32 @@ const Repo = {
         };
       })
       .sort(byDate_);
+  },
+
+  listHealth: function () {
+    return readObjects_(CONFIG.SHEET_HEALTH, CONFIG.HEALTH_COLUMNS)
+      .filter(function (h) { return /^\d{4}-\d{2}-\d{2}$/.test(h.date); })
+      .map(function (h) {
+        const o = { date: h.date };
+        CONFIG.HEALTH_COLUMNS.forEach(function (c) { if (c !== 'date' && c !== 'updated_at') o[c] = toNum_(h[c]); });
+        return o;
+      })
+      .sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+  },
+
+  /** 그날 줄이 있으면 받은 칸만 바꾸고, 없으면 새 줄을 만듭니다. */
+  upsertHealth: function (date, values) {
+    const sheet = getSheet_(CONFIG.SHEET_HEALTH, CONFIG.HEALTH_COLUMNS);
+    const idx = findRow_(sheet, 'date', date);
+    const header = headerOf_(sheet);
+    const old = idx ? sheet.getRange(idx, 1, 1, header.length).getValues()[0] : header.map(function () { return ''; });
+    const row = header.map(function (h, i) {
+      if (h === 'date') return date;
+      if (h === 'updated_at') return nowText_();
+      return values[h] !== undefined && values[h] !== '' ? values[h] : old[i];
+    });
+    if (idx) sheet.getRange(idx, 1, 1, row.length).setValues([row]);
+    else sheet.appendRow(row);
   },
 
   upsertRecord: function (rec) {

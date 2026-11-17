@@ -1030,7 +1030,7 @@
     const items = state.parsed;
     if (!items.length) { $('preview').innerHTML = ''; return; }
     const [tk, tn] = totals(items);
-    $('preview').innerHTML = items.map((it, i) => {
+    $('preview').innerHTML = '<div style="display:flex;justify-content:flex-end;margin:4px 0 -4px"><button id="meal-clear" style="color:var(--red);font-size:14px;font-weight:700;padding:6px 4px">✕ 입력 전부 지우기</button></div>' + items.map((it, i) => {
       const unknown = it.kcalPer == null && it.kcal === '';
       const basis = it.matched
         ? (it.source === 'custom' ? '내 사전' : '평균') + ' · ' + esc(it.matched) + ' 1' + esc(it.basisUnit) + ' ' + fmtN(it.kcalPer) + 'kcal, 나트륨 ' + fmtN(it.sodiumPer) + 'mg'
@@ -1049,7 +1049,12 @@
         '</div>';
     }).join('') + '<div class="totalbar"><span>합계</span><span id="ptotal">' + fmtN(tk) + ' kcal · 나트륨 ' + fmtN(tn) + ' mg</span></div>';
   }
+  function clearMealInput() {
+    $('f-foods').value = ''; state.parsed = []; state.aiGuess = {}; $('photo-note').innerHTML = '';
+    renderPreview();
+  }
   $('preview').addEventListener('click', (e) => {
+    if (e.target.id === 'meal-clear') { clearMealInput(); toast('입력을 지웠어요. 저장된 기록은 그대로예요'); return; }
     const bb = e.target.closest('[data-broth]');
     if (bb) {
       const box = bb.closest('.pitem'), it = state.parsed[Number(box.dataset.i)];
@@ -1101,6 +1106,7 @@
       img.src = url;
     });
   }
+  $('photo-note').addEventListener('click', (e) => { if (e.target.id === 'photo-clear') { clearMealInput(); toast('사진 결과를 지웠어요'); } });
   $('photo-in').addEventListener('change', async (e) => {
     const file = e.target.files && e.target.files[0]; e.target.value = '';
     if (!file) return;
@@ -1116,7 +1122,7 @@
       const ta = $('f-foods'); ta.value = (ta.value.trim() ? ta.value.trim() + ', ' : '') + line;
       parseFoods();
       $('photo-note').innerHTML = '<img src="' + data + '" alt=""><span><b style="color:var(--ink)">AI가 ' + res.items.length + '가지를 찾았어요.</b> 양과 [국물] 버튼을 확인한 뒤 [식사 추가]를 눌러 주세요.' +
-        (res.note ? '<br>' + esc(res.note) : '') + '</span>';
+        (res.note ? '<br>' + esc(res.note) : '') + '<br><button id="photo-clear" style="color:var(--red);font-weight:700;margin-top:4px">✕ 이 사진 결과 지우기</button></span>';
     } catch (err) { $('photo-note').innerHTML = ''; toast(errMsg(err)); }
     btn.classList.remove('busy'); btn.lastChild.textContent = '📷 밥상 사진으로 입력';
   });
@@ -1179,7 +1185,7 @@
       const items = state.parsed.map((it) => ({ food: it.food + (it.soup && it.broth ? ' (' + BL[it.broth] + ')' : ''), matched: it.matched, qty: it.qty, unit: it.unit, kcal: it.kcal, sodium_mg: it.sodium_mg, source: it.source, remember: !!it.remember && !(it.soup && it.broth) }));
       const res = await call('apiAddMeals', state.date, state.meal, items);
       state.meals = res.meals; state.customFoods = res.customFoods;
-      $('f-foods').value = ''; state.parsed = []; renderPreview(); renderMealDay(); renderTodayStrip();
+      clearMealInput(); renderMealDay(); renderTodayStrip();
       toast(state.meal + ' 식사를 추가했습니다');
     } catch (e) { toast(errMsg(e)); }
     btn.disabled = false; btn.textContent = '식사 추가';

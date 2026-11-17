@@ -861,18 +861,25 @@ function apiPhotoMeal(b64, mime) {
     '목록에 없는 음식은 일반적인 1인분 기준 kcal와 나트륨(mg)을 추정해 넣으세요.',
     '형식: {"items":[{"name":"돼지국밥","qty":1,"unit":"그릇","kcal":600,"sodium_mg":2300}],"note":"짧은 한 줄 메모"}',
   ].join('\n');
-  const model = props.getProperty('GEMINI_MODEL') || CONFIG.GEMINI_MODEL;
-  const res = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
-    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
-    headers: { 'x-goog-api-key': key },
-    payload: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mime, data: b64 } }] }],
-      generationConfig: { response_mime_type: 'application/json', temperature: 0.2 },
-    }),
+  // 모델 이름이 바뀌거나 없어진 경우를 대비해 차례로 시도합니다
+  const models = [props.getProperty('GEMINI_MODEL') || CONFIG.GEMINI_MODEL, 'gemini-flash-latest', 'gemini-2.5-flash-lite']
+    .filter(function (m, i, a) { return m && a.indexOf(m) === i; });
+  const payload = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mime, data: b64 } }] }],
+    generationConfig: { response_mime_type: 'application/json', temperature: 0.2 },
   });
-  const code = res.getResponseCode(), body = res.getContentText();
+  let res, code, body;
+  for (let i = 0; i < models.length; i++) {
+    res = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(models[i]) + ':generateContent', {
+      method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { 'x-goog-api-key': key.trim() }, payload: payload,
+    });
+    code = res.getResponseCode(); body = res.getContentText();
+    if (code !== 404) break;
+  }
+  if (code !== 200) console.log('Gemini 오류 ' + code + ': ' + String(body).slice(0, 500));
   if (code === 429) throw new Error('오늘 무료 사용량을 다 썼어요. 내일 다시 쓰거나 글로 적어 주세요.');
-  if (code === 400 && /API key/i.test(body)) throw new Error('Gemini 키가 올바르지 않아요. 스크립트 속성 GEMINI_KEY를 확인해 주세요.');
+  if ((code === 400 || code === 401) && /API key|API_KEY|credential/i.test(body)) throw new Error('Gemini 키가 올바르지 않아요. 스크립트 속성 GEMINI_KEY를 확인해 주세요.');
+  if (code === 400 && /location|region|not supported/i.test(body)) throw new Error('이 지역에서는 Gemini 무료 사용이 막혀 있어요.');
   if (code === 403) throw new Error('Gemini 사용 권한이 없어요. AI Studio에서 키를 다시 만들어 주세요.');
   if (code !== 200) throw new Error('사진 분석에 실패했어요 (' + code + '). 잠시 뒤 다시 해 주세요.');
   let out;
@@ -893,6 +900,23 @@ function apiPhotoMeal(b64, mime) {
   }).filter(function (it) { return it.name; });
   if (!items.length) throw new Error('사진에서 음식을 찾지 못했어요.');
   return { items: items, note: String(out.note || '').slice(0, 120) };
+}
+
+/** 편집기에서 실행: 사진 칼로리(Gemini) 연결 점검. 결과는 아래 '실행 로그'에 나옵니다. */
+function testGemini() {
+  const key = PropertiesService.getScriptProperties().getProperty('GEMINI_KEY');
+  if (!key) { Logger.log('❌ 스크립트 속성에 GEMINI_KEY가 없어요. ⚙️ 프로젝트 설정 → 스크립트 속성에서 추가하세요.'); return; }
+  Logger.log('키 확인: ' + key.trim().slice(0, 6) + '… (길이 ' + key.trim().length + ')');
+  ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash-lite'].forEach(function (m) {
+    const r = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent', {
+      method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { 'x-goog-api-key': key.trim() },
+      payload: JSON.stringify({ contents: [{ parts: [{ text: '김치찌개 1인분 나트륨은 대략 몇 mg? 숫자만' }] }] }),
+    });
+    const c = r.getResponseCode();
+    let msg = r.getContentText();
+    try { const j = JSON.parse(msg); msg = c === 200 ? ((j.candidates[0].content.parts[0] || {}).text || '') : (j.error && j.error.message) || msg; } catch (e) {}
+    Logger.log((c === 200 ? '✅ ' : '❌ ') + m + ' → ' + c + ' ' + String(msg).slice(0, 200));
+  });
 }
 
 function mondayOf_(date) {

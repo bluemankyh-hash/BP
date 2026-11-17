@@ -685,7 +685,7 @@
     if (!CFG.k || !CFG.api) throw new Error('열쇠가 없습니다');
     let res;
     const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timer = ctrl ? setTimeout(() => ctrl.abort(), 30000) : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), fn === 'apiPhotoMeal' ? 90000 : 30000) : null; // 사진 분석은 오래 걸려서 90초
     try {
       res = await fetch(CFG.api, { method: 'POST', redirect: 'follow', signal: ctrl ? ctrl.signal : undefined,
         headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ k: CFG.k, fn, args }) });

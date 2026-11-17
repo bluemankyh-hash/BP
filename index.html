@@ -2199,7 +2199,8 @@
     return '<svg viewBox="0 0 46 46"><path d="' + d + '" fill="none" stroke="var(--run)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   }
   function renderRunActs() {
-    const days = state.records.filter((r) => r.run_km > 0).slice(-8).reverse();
+    const all = state.records.filter((r) => r.run_km > 0).slice(-30).reverse();
+    const days = state.showAllRuns ? all : all.slice(0, 1); // 기본은 가장 최근 1개만
     if (!days.length) { $('run-acts').innerHTML = '<p class="empty">아직 러닝 기록이 없습니다. 위의 [러닝 시작]을 눌러 첫 기록을 남겨 보세요.</p>'; return; }
     $('run-acts').innerHTML = days.map((r) => {
       const gps = (state.runs || []).filter((x) => x.date === r.date);
@@ -2212,8 +2213,10 @@
         '<div class="main">' + main.toFixed(2) + ' km</div><div class="t">' + sub + '</div>' +
         (g && g.points && g.points.filter(Boolean).length > 1 ? (savedAsCourse(g) ? '<div class="t" style="color:var(--teal)">✓ 내 코스에 있어요</div>' : '<button class="tocourse" data-run="' + esc(g.id) + '">＋ 내 코스로 저장</button>') + '<button class="gpx-btn" data-gpx="' + esc(g.id) + '">GPX ↓</button>' : '') +
         '</div></div>';
-    }).join('');
+    }).join('') + (all.length > 1 ? '<button id="runs-more" style="display:block;width:100%;margin-top:10px;padding:10px;border-radius:12px;border:1px solid var(--hair);color:var(--teal);font-weight:700;font-size:14px">' +
+      (state.showAllRuns ? '접기 ▲' : '더 보기 (' + (all.length - 1) + '개) ▼') + '</button>' : '');
   }
+  $('run-acts').addEventListener('click', (e) => { if (e.target.id === 'runs-more') { state.showAllRuns = !state.showAllRuns; renderRunActs(); } });
   // 시트가 시각으로 바꿔 둔 '1899-12-30 06:28' → '6:28'
   function cleanClock(v) { return String(v || '').replace(/^1899-12-3[01][ T]/, '').replace(/^0(\d:)/, '$1'); }
   function savedAsCourse(g) { let ids = []; try { ids = JSON.parse(localStorage.getItem('bp_run2course') || '[]'); } catch (_) {} return ids.includes(String(g.id)) && (state.courses || []).some((c) => Math.abs(Number(c.km) - Number(g.km)) < 0.01); }

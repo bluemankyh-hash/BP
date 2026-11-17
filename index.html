@@ -321,6 +321,10 @@
   .st-ex { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
   .st-ex button { height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid var(--hair); background: var(--surface); color: var(--ink); font-size: 14px; font-weight: 600; }
   .st-ex button.on { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .guide { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; padding: 12px; border-radius: 14px; border: 1px solid var(--hair); background: var(--surface); }
+  .guide .fig { flex: none; width: 104px; height: 72px; color: var(--teal); }
+  .guide ol { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.5; color: var(--ink); }
+  .guide li + li { margin-top: 3px; }
   .st-timer { text-align: center; padding: 16px; border-radius: 16px; background: var(--panel); }
   .st-timer .ph { font-size: 14px; font-weight: 700; color: var(--teal); }
   .st-timer .ph.rest { color: var(--amber); }
@@ -647,7 +651,7 @@
 
 <nav><div class="in">
   <button data-tab="record" class="on"><svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>기록</button>
-  <button data-tab="run"><svg viewBox="0 0 24 24"><circle cx="14.5" cy="4.5" r="1.8"/><path d="m9 20 2.5-5 3 2.5V21"/><path d="M6.5 11.5 9.5 8l4 .5 2.5 3.5 3 .5"/><path d="m11.5 15-2-3.5"/></svg>러닝</button>
+  <button data-tab="run"><svg viewBox="0 0 24 24"><circle cx="14.5" cy="4.5" r="1.8"/><path d="m9 20 2.5-5 3 2.5V21"/><path d="M6.5 11.5 9.5 8l4 .5 2.5 3.5 3 .5"/><path d="m11.5 15-2-3.5"/></svg>운동</button>
   <button data-tab="meal"><svg viewBox="0 0 24 24"><path d="M3 11h18a9 9 0 0 1-18 0Z"/><path d="M8 7c0-1.5 1-2 1-3.5M12 7c0-1.5 1-2 1-3.5M16 7c0-1.5 1-2 1-3.5"/></svg>식사</button>
   <button data-tab="trend"><svg viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="m7 14 4-4 3 3 5-6"/></svg>추이</button>
   <button data-tab="food"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>식당</button>
@@ -737,7 +741,7 @@
 
   // ───── 탭 · 날짜 ─────
   document.querySelectorAll('nav button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
-  const TAB_TITLES = { record: '혈압 관리', run: '러닝', meal: '식사', trend: '추이', food: '주변 식당' };
+  const TAB_TITLES = { record: '혈압 관리', run: '운동', meal: '식사', trend: '추이', food: '주변 식당' };
   function showTab(name) {
     state.tab = name;
     document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
@@ -852,7 +856,7 @@
       habitRow('🍺 술 마신 다음 날', bp.filter((r) => has(shiftDate(r.date, -1), '술')), bp.filter((r) => !has(shiftDate(r.date, -1), '술')), '다음 날', '그 외', '기록 탭에서 술 마신 날 🍺를 눌러 두세요.') +
       habitRow('☕ 커피 2잔 이상 마신 날', bp.filter((r) => has(r.date, '커피')), bp.filter((r) => !has(r.date, '커피')), '마신 날', '그 외', '기록 탭에서 ☕를 눌러 두세요.') +
       med +
-      habitRow('💪 근력 운동한 다음 날', bp.filter((r) => has(shiftDate(r.date, -1), '근력')), bp.filter((r) => !has(shiftDate(r.date, -1), '근력')), '다음 날', '그 외', '러닝 탭에서 근력 세트를 기록해 두세요.') +
+      habitRow('💪 근력 운동한 다음 날', bp.filter((r) => has(shiftDate(r.date, -1), '근력')), bp.filter((r) => !has(shiftDate(r.date, -1), '근력')), '다음 날', '그 외', '운동 탭에서 근력 세트를 기록해 두세요.') +
       habitRow('🚬 담배 피운 날', bp.filter((r) => has(r.date, '흡연')), bp.filter((r) => !has(r.date, '흡연')), '피운 날', '안 피운 날', '기록 탭에서 🚬를 눌러 두세요.') +
       '<div class="medrow"><span class="d2" style="margin:0;width:100%">소염제를 매일 드신다면 먹는 기간:</span><input id="med-start" type="date" value="' + (ms || '') + '" max="' + todayStr() + '"><span>~</span><input id="med-end" type="date" value="' + (prefs().med_end || '') + '"><button id="med-save">저장</button>' +
       (ms ? '<button id="med-clear" style="background:none;color:var(--red);text-decoration:underline;padding:0 4px">지우기</button>' : '') + '</div>' +
@@ -935,7 +939,7 @@
           '<td class="num"' + (it ? ' style="color:' + sodiumColor(it.sodium) + '"' : '') + '>' + (it ? fmtN(it.sodium) : '–') + '</td></tr>';
       }).join('') +
       '</tbody></table>' + (dates.length > 7 ? '<button id="more" class="sub" style="color:var(--teal);font-weight:600">' + (state.showAll ? '접기' : '더 보기') + '</button>' : '') +
-      '<p class="sub">줄을 누르면 그 날짜로 이동해 고칠 수 있습니다. 러닝·몸 상태는 러닝 탭, 식사는 식사 탭에서 고칩니다. ' +
+      '<p class="sub">줄을 누르면 그 날짜로 이동해 고칠 수 있습니다. 러닝·근력·몸 상태는 운동 탭, 식사는 식사 탭에서 고칩니다. ' +
       (state.records.some((r) => r.date === state.date) ? '<button id="del-day" style="color:var(--red);font-size:13px;text-decoration:underline">' + esc(prettyDate(state.date)) + ' 기록 삭제</button>' : '') + '</p>';
   }
   $('recent').addEventListener('click', async (e) => {
@@ -1926,13 +1930,6 @@
     else if (gate.level === 'stop') items.push({ cls: 'warn', ck: '!', t: '근력도 오늘은 쉬기', d: '혈압이 내려간 뒤에 하세요.' });
     else if (sDays >= 3 && !sToday) items.push({ cls: 'done', ck: '✓', t: '이번 주 근력 3회 완료', d: '더 해도 좋지만 쉬어도 돼요.' });
     else items.push({ cls: '', ck: sToday ? String(sToday) : '', t: '벽 스쿼트 버티기 ' + (sToday ? (4 - sToday) + '세트 남음' : '2분 × 4세트'), d: '이번 주 ' + sDays + '/3회 · 혈압 낮추는 효과가 큰 운동', act: '<button class="act" data-do="strength">▶ 시작</button>' });
-    // ③ 식사
-    const overN = eatN > SODIUM_GOAL, overK = kt && eatK > kt, dayEnd = new Date().getHours() >= 20;
-    const okFood = it.length && !overN && !overK && dayEnd;
-    items.push({ cls: okFood ? 'done' : overN || overK ? 'warn' : '', ck: okFood ? '✓' : overN || overK ? '!' : '',
-      t: (kt ? fmtN(kt) + 'kcal · ' : '') + '나트륨 2,000mg 이하로 먹기',
-      d: it.length ? '지금 ' + fmtN(eatK) + 'kcal · 나트륨 ' + fmtN(eatN) + 'mg' + (overN ? ' (나트륨 초과)' : '') : '먹을 때마다 기록하면 남은 양을 알려 줘요',
-      act: '<button class="act ghost" data-do="meal">식사</button>' });
     $('coach').innerHTML = '<div class="coach">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px"><span>목표일 <b>' + esc(prettyDate(g.target_date)) + '</b></span><button id="g-edit" style="color:var(--teal);font-weight:700">목표 바꾸기 ›</button></div>' +
       '<div class="prog"><i style="width:' + (p.pct * 100).toFixed(0) + '%"></i></div>' +
@@ -1942,6 +1939,7 @@
         '<div class="todo">' + items.map((x) => '<div class="it ' + x.cls + '"><span class="ck">' + x.ck + '</span><span class="tx"><b>' + esc(x.t) + '</b><span>' + esc(x.d) + '</span></span>' + (x.act || '') + '</div>').join('') + '</div>' +
         '<div class="wk"><div>이번 주 러닝 <b style="color:var(--ink)">' + doneKm.toFixed(1) + '</b> / ' + p.weekKm + 'km<div class="bar"><i style="width:' + Math.min(100, doneKm / p.weekKm * 100) + '%"></i></div></div>' +
         '<div>이번 주 근력 <b style="color:var(--ink)">' + sDays + '</b> / 3회<div class="dots">' + [0, 1, 2].map((i) => '<i' + (i < sDays ? ' class="on"' : '') + '></i>').join('') + '</div></div></div>' +
+        (kt ? '<button class="sub" data-do="meal" style="display:block;margin:10px 0 0;color:var(--teal);font-weight:700;text-align:left">🍽 식사는 하루 ' + fmtN(kt) + 'kcal · 나트륨 2,000mg 이하 → 식사 탭에서 확인 ›</button>' : '') +
         '<p class="sub" style="font-size:12px;margin-top:8px">한 주에 ' + p.rate.toFixed(1) + 'kg씩 빼는 계획: 러닝 주 ' + p.weekKm + 'km + 근력 주 3회 + 하루 ' + p.foodKcal + 'kcal 덜 먹기.' +
           (p.tooFast ? ' 목표일까지는 조금 빨라서 안전한 속도(주 ' + p.rate.toFixed(1) + 'kg)로 계산했어요. 이 속도면 ' + esc(prettyDate(p.safeDate)) + ' 무렵 도착해요.' : '') + '</p>') +
       (!p.cur ? '<div class="tip warn"><b>체중을 기록해 주세요</b>기록 탭에 체중을 적으면 진행률이 자동으로 바뀌어요.</div>' : '') +
@@ -2194,7 +2192,7 @@
         ? await call('apiRunToCourse', g.id, name.trim())
         : await call('apiSaveCourse', { name: name.trim(), km: g.km, points: g.points.filter(Boolean).map((p) => [p[0], p[1]]) });
       try { const ids = JSON.parse(localStorage.getItem('bp_run2course') || '[]'); ids.push(String(g.id)); localStorage.setItem('bp_run2course', JSON.stringify(ids.slice(-50))); } catch (_) {}
-      saveCache(); renderRunTab(); toast('"' + name.trim() + '" 코스로 저장했어요. 러닝 탭 위쪽 코스 버튼에 생겼어요');
+      saveCache(); renderRunTab(); toast('"' + name.trim() + '" 코스로 저장했어요. 운동 탭 위쪽 코스 버튼에 생겼어요');
     } catch (err) { toast(errMsg(err)); b.disabled = false; b.textContent = '＋ 내 코스로 저장'; }
   });
   function renderPRs() {
@@ -2213,6 +2211,18 @@
   }
   // ───── 근력 · 버티기 (등척성 운동: 2분 버티기 × 4, 사이 2분 쉬기, 주 3회) ─────
   const ST_EX = [['벽 스쿼트', '벽에 등을 대고 무릎 90°로 앉은 자세로 버티기'], ['플랭크', '팔꿈치와 발끝으로 몸을 일자로 버티기'], ['스쿼트', '천천히 앉았다 일어나기 15회'], ['팔굽혀펴기', '무릎 대고 해도 좋아요 10회']];
+  // 자세 그림(간단한 선 그림)과 따라 하기
+  const FIG = (body) => '<svg viewBox="0 0 160 110" class="fig" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">' + body + '</g></svg>';
+  const ST_GUIDE = [
+    { fig: FIG('<line x1="40" y1="6" x2="40" y2="104" stroke-width="3" opacity=".35"/><line x1="6" y1="104" x2="154" y2="104" stroke-width="3" opacity=".35"/><circle cx="56" cy="22" r="9"/><line x1="52" y1="32" x2="50" y2="66"/><line x1="50" y1="66" x2="90" y2="66"/><line x1="90" y1="66" x2="90" y2="102"/><line x1="51" y1="42" x2="68" y2="58"/>'),
+      steps: ['벽에 등을 붙이고 발은 벽에서 한 걸음 앞에 둬요.', '등을 벽에 댄 채 미끄러져 내려가 <b>무릎이 90°</b>(의자에 앉은 모양)가 되면 멈춰요.', '무릎이 발끝보다 나가지 않게. 힘들면 덜 내려가도 돼요. <b>숨은 계속 쉬기!</b>'] },
+    { fig: FIG('<line x1="6" y1="104" x2="154" y2="104" stroke-width="3" opacity=".35"/><circle cx="30" cy="62" r="9"/><line x1="40" y1="68" x2="140" y2="88"/><line x1="44" y1="70" x2="44" y2="102"/><line x1="44" y1="102" x2="62" y2="102"/><line x1="140" y1="88" x2="146" y2="102"/>'),
+      steps: ['팔꿈치를 어깨 바로 아래에 대고 엎드려요.', '머리부터 발끝까지 <b>일자</b>가 되게 엉덩이를 들어요.', '허리가 처지거나 엉덩이가 너무 올라가지 않게. 처음엔 무릎을 대고 해도 돼요.'] },
+    { fig: FIG('<line x1="6" y1="104" x2="154" y2="104" stroke-width="3" opacity=".35"/><circle cx="70" cy="22" r="9"/><line x1="70" y1="32" x2="64" y2="62"/><line x1="64" y1="62" x2="92" y2="72"/><line x1="92" y1="72" x2="84" y2="102"/><line x1="68" y1="42" x2="104" y2="46"/>'),
+      steps: ['발은 어깨너비, 팔은 앞으로 뻗어요.', '의자에 앉듯 엉덩이를 뒤로 빼며 천천히 내려가요.', '천천히 일어나기 15번. 무릎이 아프면 덜 내려가요.'] },
+    { fig: FIG('<line x1="6" y1="104" x2="154" y2="104" stroke-width="3" opacity=".35"/><circle cx="32" cy="50" r="9"/><line x1="42" y1="56" x2="120" y2="96"/><line x1="46" y1="58" x2="46" y2="102"/><line x1="120" y1="96" x2="122" y2="102"/>'),
+      steps: ['손은 어깨보다 조금 넓게 바닥에 짚어요.', '몸을 일자로 유지하며 가슴을 바닥 가까이 내렸다 올려요.', '10번. 힘들면 <b>무릎을 바닥에 대고</b> 해도 효과 있어요.'] },
+  ];
   const st = { ex: 0, phase: 'idle', left: 0, set: 0, timer: null, sets: 4, hold: 120, rest: 120 };
   function strengthSets(date) { const m = String(checksOf(date)).match(/근력(?::(\d+))?/); return m ? Number(m[1] || 1) : 0; }
   function strengthDaysThisWeek() { const mon = mondayOf(todayStr()); let n = 0; for (let i = 0; i < 7; i++) if (strengthSets(shiftDate(mon, i))) n++; return n; }
@@ -2256,6 +2266,7 @@
       '<div class="st-top"><span class="st-week">이번 주 <b>' + days + '</b> / 3회</span><span class="st-week">오늘 ' + today + '세트</span></div>' +
       '<div class="st-dots">' + [0, 1, 2].map((i) => '<i' + (i < days ? ' class="on"' : '') + '></i>').join('') + '</div>' +
       (st.phase === 'idle' ? '<div class="st-ex">' + ST_EX.map((e, i) => '<button data-ex="' + i + '"' + (i === st.ex ? ' class="on"' : '') + '>' + e[0] + '</button>').join('') + '</div>' : '') +
+      '<div class="guide">' + ST_GUIDE[st.ex].fig + '<ol>' + ST_GUIDE[st.ex].steps.map((x) => '<li>' + x + '</li>').join('') + '</ol></div>' +
       timer +
       '<div class="st-btns">' + (st.phase === 'idle'
         ? (timed ? '<button class="go" id="st-go"' + (g.level === 'stop' ? ' disabled' : '') + '>▶ 타이머 시작</button>' : '') + '<button id="st-plus">＋ 1세트 기록</button>'

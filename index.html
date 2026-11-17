@@ -255,7 +255,16 @@
   .todo .it.warn .ck { border-color: var(--amber); }
   .todo .tx { flex: 1; min-width: 0; }
   .todo .tx b { display: block; font-size: 15px; }
-  .todo .tx span { font-size: 12px; color: var(--mute); line-height: 1.4; }
+  .todo .tx span { display: block; font-size: 12px; color: var(--mute); line-height: 1.45; }
+  .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .week .wd { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 0; border-radius: 10px; background: var(--panel); }
+  .week .wd .n { font-size: 11px; color: var(--mute); }
+  .week .wd b { font-size: 15px; font-weight: 800; }
+  .week .wd .s { font-size: 10px; color: var(--mute); }
+  .week .wd.done { background: var(--run); }
+  .week .wd.done .n, .week .wd.done .s, .week .wd.done b { color: #fff; }
+  .week .wd.miss b { color: var(--mute); }
+  .week .wd.today { outline: 2px solid var(--ink); outline-offset: -2px; }
   .todo .it.done .tx b { color: var(--mute); }
   .todo .act { flex: none; height: 36px; padding: 0 12px; border-radius: 10px; background: var(--teal); color: #fff; font-size: 13px; font-weight: 700; }
   .todo .act.ghost { background: transparent; color: var(--teal); border: 1px solid var(--teal); }
@@ -493,7 +502,7 @@
     </section>
     <section class="block">
       <h2>오늘 몸 상태</h2>
-      <p class="sub" style="margin:-6px 0 12px">아픈 곳을 누르세요. 한 번 누르면 뻐근함, 두 번 누르면 아픔, 세 번이면 지워집니다.</p>
+      <p class="sub" style="margin:-6px 0 12px">누를 때마다 뻐근함 → 아픔 → 지움</p>
       <div class="body-wrap"><svg class="body-svg" id="body-svg" viewBox="0 0 160 300" aria-label="몸 그림"></svg><div class="parts" id="body-parts"></div></div>
       <button class="primary" id="pain-save">몸 상태 저장</button>
       <p class="sub" id="pain-note"></p>
@@ -510,15 +519,12 @@
 
   <!-- 식사 -->
   <div id="tab-meal" class="tab">
-    <section class="block" id="budget-wrap">
-      <div id="budget"></div>
-    </section>
     <section class="block">
       <div class="seg" id="meal-seg"></div>
       <label class="photo-btn" id="photo-btn"><input type="file" id="photo-in" accept="image/*" hidden>📷 밥상 사진으로 입력</label>
       <div id="photo-note"></div>
       <textarea id="f-foods" placeholder="먹은 음식을 쉼표로 구분해 적으세요&#10;예: 김치찌개, 공기밥 반공기, 김치 1/3, 멸치볶음 반"></textarea>
-      <p class="sub" style="margin-top:6px">반찬 <b>1접시 = 내 앞 작은 종지 하나</b>(1인분) 기준이에요. 같이 먹는 큰 접시라면 내가 집어 먹은 만큼만: 두세 젓가락 ≈ ⅓, 종지 반 ≈ ½. 적은 뒤 아래 [먹은 양] 버튼으로 고쳐도 돼요. 국·찌개·국밥은 <b>[국물]</b> 버튼으로 남긴 만큼 나트륨이 빠져요 (예: <b>돼지국밥 국물 반 남김</b>).</p>
+      <p class="sub" style="margin-top:6px">반찬 1접시 = 작은 종지 1인분. 남긴 만큼 [먹은 양]·[국물] 버튼으로 고치세요.</p>
       <div id="preview"></div>
       <button class="primary" id="btn-meal">식사 추가</button>
     </section>
@@ -526,7 +532,7 @@
       <h2 id="day-title">오늘 먹은 것</h2>
       <div class="daysum" id="daysum"></div>
       <div id="daymeals"></div>
-      <p class="sub">나트륨 하루 목표 2,000mg 이하 (세계보건기구 권고). 칼로리·나트륨은 음식별 평균 추정치입니다.</p>
+      <p class="sub">칼로리·나트륨은 평균 추정치예요.</p>
     </section>
   </div>
 
@@ -573,6 +579,10 @@
 
   <!-- 식당 -->
   <div id="tab-food" class="tab">
+    <section class="block" id="budget-wrap">
+      <h2>오늘 남은 양 · 다음 끼니 추천</h2>
+      <div id="budget"></div>
+    </section>
     <section class="block">
       <h2>주변 10km 저염 친화 식당</h2>
       <div id="kakao-missing" class="alert" style="display:none;margin-top:0">카카오 키가 아직 없어 자동 검색이 꺼져 있습니다. 아래에서 식당을 직접 저장할 수 있습니다.</div>
@@ -749,7 +759,7 @@
     $('datepick').style.visibility = name === 'record' || name === 'meal' ? 'visible' : 'hidden';
     $('page-title').textContent = TAB_TITLES[name] || '혈압 관리';
     $('open-settings').hidden = name !== 'record';
-    if (name === 'meal') renderBudget();
+    if (name === 'food') renderBudget();
     if (name === 'trend') { renderStats(); renderHealth(); renderHabits(); renderCharts(); }
     if (name === 'run') renderRunTab();
     if (name === 'food' && !state.searched) autoSearch();
@@ -860,8 +870,7 @@
       habitRow('🚬 담배 피운 날', bp.filter((r) => has(r.date, '흡연')), bp.filter((r) => !has(r.date, '흡연')), '피운 날', '안 피운 날', '기록 탭에서 🚬를 눌러 두세요.') +
       '<div class="medrow"><span class="d2" style="margin:0;width:100%">소염제를 매일 드신다면 먹는 기간:</span><input id="med-start" type="date" value="' + (ms || '') + '" max="' + todayStr() + '"><span>~</span><input id="med-end" type="date" value="' + (prefs().med_end || '') + '"><button id="med-save">저장</button>' +
       (ms ? '<button id="med-clear" style="background:none;color:var(--red);text-decoration:underline;padding:0 4px">지우기</button>' : '') + '</div>' +
-      '<p class="d2" style="margin-top:6px">시작한 날을 적으면 그 전 90일과 먹는 동안을 비교해요. 끝나는 날은 약을 다 먹은 뒤에 적어도 돼요. 매일 💊를 누르지 않아도 돼요.</p>' +
-      '<p class="sub" style="font-size:12px">숫자는 수축기 / 이완기 평균 차이예요. 같이 일어난 일일 뿐 원인이라고 단정할 수는 없어요. <b>약을 끊거나 바꾸는 건 꼭 의사·약사와 상의하세요.</b></p>';
+            '<p class="sub" style="font-size:12px">수축기 / 이완기 평균 차이예요. 원인이 아닐 수도 있으니 약 변경은 의사와 상의하세요.</p>';
   }
   $('habits').addEventListener('click', async (e) => {
     if (e.target.id !== 'med-save' && e.target.id !== 'med-clear') return;
@@ -939,7 +948,7 @@
           '<td class="num"' + (it ? ' style="color:' + sodiumColor(it.sodium) + '"' : '') + '>' + (it ? fmtN(it.sodium) : '–') + '</td></tr>';
       }).join('') +
       '</tbody></table>' + (dates.length > 7 ? '<button id="more" class="sub" style="color:var(--teal);font-weight:600">' + (state.showAll ? '접기' : '더 보기') + '</button>' : '') +
-      '<p class="sub">줄을 누르면 그 날짜로 이동해 고칠 수 있습니다. 러닝·근력·몸 상태는 운동 탭, 식사는 식사 탭에서 고칩니다. ' +
+      '<p class="sub">줄을 누르면 그 날짜로 이동해요. ' +
       (state.records.some((r) => r.date === state.date) ? '<button id="del-day" style="color:var(--red);font-size:13px;text-decoration:underline">' + esc(prettyDate(state.date)) + ' 기록 삭제</button>' : '') + '</p>';
   }
   $('recent').addEventListener('click', async (e) => {
@@ -1168,7 +1177,7 @@
       tile('걸음 수', 'steps', '보', r0, false, '') +
       tile('활동 칼로리', 'active_kcal', 'kcal', r0, false, '') +
       tile('수면', 'sleep_h', '시간', r1, false, '') +
-      '</div><p class="sub" style="font-size:12px">작은 선은 최근 30일이에요. 러닝을 꾸준히 하면 보통 안정 심박은 내려가고 VO2max는 올라가요.</p>';
+      '</div>';
   }
 
   function defaultMeal() { const h = new Date().getHours(); return h < 10 ? '아침' : h < 15 ? '점심' : h < 21 ? '저녁' : '간식'; }
@@ -1225,10 +1234,7 @@
   }
   function nextMealName() { const h = new Date().getHours(); return h < 10 ? '아침' : h < 15 ? '점심' : h < 21 ? '저녁' : '내일 아침'; }
   function renderBudget() {
-    const wrap = $('budget-wrap');
-    if (state.date !== todayStr()) { wrap.hidden = true; return; }
-    wrap.hidden = false;
-    const list = state.meals.filter((m) => m.date === state.date);
+    const list = state.meals.filter((m) => m.date === todayStr());
     const k = list.reduce((a, m) => a + (m.kcal || 0), 0), n = list.reduce((a, m) => a + (m.sodium_mg || 0), 0);
     const kt = kcalTarget(), next = nextMealName(), tomorrow = next === '내일 아침';
     const leftN = SODIUM_GOAL - n, leftK = kt ? kt - k : null;
@@ -1255,15 +1261,16 @@
       '<div class="bud-bars"><div><div class="k"><span>나트륨</span><span>' + fmtN(n) + ' / ' + fmtN(SODIUM_GOAL) + 'mg</span></div>' + bar(n, SODIUM_GOAL, sodiumColor(n)) + '</div>' +
       '<div><div class="k"><span>칼로리</span><span>' + (kt ? fmtN(k) + ' / ' + fmtN(kt) : fmtN(k) + ' kcal') + '</span></div>' + (kt ? bar(k, kt, k > kt ? 'var(--red)' : 'var(--teal)') : '<div class="sub" style="margin:4px 0 0;font-size:11px">체중을 적으면 목표가 나와요</div>') + '</div></div>' +
       '<div class="sub" style="margin:8px 0 0;font-weight:700;color:var(--ink)">' + (tomorrow ? '내일 아침' : next) + ' 추천</div>' +
-      '<div class="recs">' + pick.map(card).join('') + '</div>' +
-      (kt ? '<p class="sub" style="font-size:11px;margin-top:4px">칼로리 목표 ' + fmtN(kt) + 'kcal는 체중×28로 잡은 추정치' + (coachPlan() && !coachPlan().done ? '에서 체중 코치의 "하루 ' + coachPlan().foodKcal + 'kcal 덜 먹기"를 뺀 값' : '') + '이에요.</p>' : '');
+      '<div class="recs">' + pick.map(card).join('') + '</div>';
   }
   $('budget').addEventListener('click', (e) => {
     const u = e.target.closest('[data-use]'), nr = e.target.closest('[data-near]');
     if (u) {
       const idea = MENU_IDEAS[Number(u.dataset.use)];
+      const nm = nextMealName();
+      showTab('meal'); setDate(nm === '내일 아침' ? shiftDate(todayStr(), 1) : todayStr());
       $('f-foods').value = idea.text; parseFoods();
-      const nm = nextMealName(); state.meal = nm === '내일 아침' ? '아침' : nm; renderMealSeg();
+      state.meal = nm === '내일 아침' ? '아침' : nm; renderMealSeg();
       $('f-foods').scrollIntoView({ behavior: 'smooth', block: 'center' });
       toast('아래 양을 확인하고 [식사 추가]를 눌러 주세요');
     }
@@ -1913,43 +1920,85 @@
       return;
     }
     const g = p.g, gate = runGate(), today = todayStr();
-    const weekStart = mondayOf(today);
-    let doneKm = 0; for (let i = 0; i < 7; i++) doneKm += dayKm(shiftDate(weekStart, i));
+    const mon = mondayOf(today), dow = (new Date().getDay() + 6) % 7; // 0=월
+    const DAYS = ['월', '화', '수', '목', '금', '토', '일'];
+    // 주간 기본 틀: 달리기 4번(토요일은 긴 거리) + 근력 3번
+    const PLAN = ['run', 'str', 'run', 'str', 'run', 'long', 'str'];
+    let doneKm = 0; for (let i = 0; i < 7; i++) doneKm += dayKm(shiftDate(mon, i));
     const restKm = Math.max(0, p.weekKm - doneKm), todayKm = dayKm(today);
-    const daysLeft = 7 - ((new Date().getDay() + 6) % 7);           // 오늘 포함 남은 날
-    const runsLeft = Math.max(1, Math.ceil(daysLeft * 4 / 7));      // 주 4회 달리기 기준
+    // 남은 달리기 날(오늘 아직 안 뛰었으면 오늘 포함)에 남은 거리를 나눔 (긴 거리 날은 1.5배)
+    const runDays = []; for (let i = dow; i < 7; i++) if ((PLAN[i] === 'run' || PLAN[i] === 'long') && !(i === dow && todayKm > 0)) runDays.push(i);
+    const wsum = runDays.reduce((a, i) => a + (PLAN[i] === 'long' ? 1.5 : 1), 0);
+    const planKmOf = (i) => !runDays.includes(i) || restKm <= 0 ? 0 : Math.max(3, Math.round(restKm * (PLAN[i] === 'long' ? 1.5 : 1) / wsum * 2) / 2);
+    // 내 페이스: 최근 시간 기록이 있는 러닝 6개의 가운데 값
+    const paced = (state.runs || []).filter((r) => r.duration_s > 0 && r.km >= 1).slice(-6).map((r) => r.duration_s / r.km).sort((x, y) => x - y);
+    const basePace = paced.length ? paced[Math.floor(paced.length / 2)] : null;
+    const pc = (sec) => Math.floor(sec / 60) + ':' + ('0' + Math.round(sec % 60)).slice(-2);
+    let age = 44; try { age = Number(localStorage.getItem('bp_age')) || 44; } catch (_) {}
+    const maxHr = 220 - age, hr = (a, b) => Math.round(maxHr * a) + '~' + Math.round(maxHr * b);
     const sDays = strengthDaysThisWeek(), sToday = strengthSets(today);
-    const it = (state.meals || []).filter((m) => m.date === today), eatK = it.reduce((a, m) => a + (m.kcal || 0), 0), eatN = it.reduce((a, m) => a + (m.sodium_mg || 0), 0);
-    const kt = kcalTarget();
+
+    // ── 오늘 할 일 (자세히) ──
     const items = [];
-    // ① 달리기
-    if (gate.level === 'stop') items.push({ cls: 'warn', ck: '!', t: '오늘은 운동 쉬기', d: gate.title });
-    else if (gate.level === 'caution') items.push({ cls: todayKm > 0 ? 'done' : 'warn', ck: todayKm > 0 ? '✓' : '!', t: '빠르게 걷기 30분', d: gate.title + ' 뛰는 대신 걸으세요.' });
-    else if (todayKm > 0) items.push({ cls: 'done', ck: '✓', t: '달리기 ' + todayKm.toFixed(1) + 'km 완료', d: restKm > 0 ? '이번 주 남은 ' + restKm.toFixed(1) + 'km' : '이번 주 목표 달성!' });
-    else if (restKm <= 0) items.push({ cls: 'done', ck: '✓', t: '이번 주 러닝 목표 달성', d: '오늘은 쉬거나 가볍게 걸어도 좋아요.' });
-    else {
-      const km = Math.max(3, Math.min(12, Math.round(restKm / runsLeft * 2) / 2));
-      items.push({ cls: '', ck: '', t: '달리기 ' + km + 'km', d: '대화할 수 있는 속도로. 이번 주 남은 ' + restKm.toFixed(1) + 'km', act: '<button class="act" data-do="run">▶ 러닝</button>' });
+    const type = PLAN[dow];
+    if (gate.level === 'stop') items.push({ cls: 'warn', ck: '!', t: '오늘은 운동 쉬기', d: [gate.title] });
+    else if (gate.level === 'caution') items.push({ cls: todayKm > 0 ? 'done' : 'warn', ck: todayKm > 0 ? '✓' : '!', t: '빠르게 걷기 30분', d: [gate.title, '심박 ' + hr(0.5, 0.6) + '회/분 정도로 편하게'] });
+    else if (todayKm > 0) {
+      const g0 = (state.runs || []).filter((r) => r.date === today && r.duration_s > 0).slice(-1)[0];
+      const fb = [];
+      if (g0 && basePace) { const d = g0.duration_s / g0.km - basePace; fb.push(pc(g0.duration_s / g0.km) + '/km · ' + (Math.abs(d) < 8 ? '평소 페이스' : d < 0 ? '평소보다 ' + Math.round(-d) + '초 빨라요' : '평소보다 ' + Math.round(d) + '초 느려요')); }
+      fb.push(restKm > 0 ? '이번 주 남은 ' + restKm.toFixed(1) + 'km' : '이번 주 러닝 목표 달성!');
+      fb.push('물 마시고, 저녁에 종아리·허벅지 스트레칭 5분');
+      items.push({ cls: 'done', ck: '✓', t: '달리기 ' + todayKm.toFixed(1) + 'km 완료', d: fb });
+    } else if ((type === 'run' || type === 'long') && planKmOf(dow) > 0) {
+      const km = planKmOf(dow), long = type === 'long';
+      const pace = basePace ? (long ? [basePace + 20, basePace + 50] : [basePace + 5, basePace + 35]) : null;
+      const mins = pace ? Math.round(km * (pace[0] + pace[1]) / 2 / 60) : Math.round(km * 7);
+      items.push({ cls: '', ck: '', t: (long ? '긴 거리 천천히 ' : '편하게 달리기 ') + km + 'km', act: '<button class="act" data-do="run">▶ 러닝</button>',
+        d: [(pace ? '페이스 ' + pc(pace[0]) + '~' + pc(pace[1]) + '/km · ' : '') + '심박 ' + hr(long ? 0.6 : 0.65, long ? 0.7 : 0.75) + ' · 약 ' + mins + '분',
+          '처음·끝 5분은 걷기 (혈압약 때문에 갑자기 멈추면 어지러울 수 있어요)',
+          long ? '이번 주 가장 긴 날. 숨이 차면 걷다 뛰어도 돼요' : '옆 사람과 대화할 수 있는 속도'] });
+    } else if (restKm <= 0) items.push({ cls: 'done', ck: '✓', t: '이번 주 러닝 목표 달성', d: ['오늘은 쉬거나 30분 걷기'] });
+    else items.push({ cls: '', ck: '', t: '달리기 쉬는 날', d: ['근육이 회복하는 날이에요. 걷기 30분은 좋아요', '다음 달리기: ' + (runDays.length ? DAYS[runDays[0]] + '요일 ' + planKmOf(runDays[0]) + 'km' : '다음 주')] });
+    // 근력
+    const strDay = type === 'str' || (7 - dow) <= (3 - sDays) * 2 - 1; // 남은 날이 부족하면 오늘도 권함
+    if (sToday >= 4) items.push({ cls: 'done', ck: '✓', t: '벽 스쿼트 ' + sToday + '세트 완료', d: ['이번 주 근력 ' + sDays + '/3회'] });
+    else if (gate.level !== 'stop' && sDays < 3 && (strDay || sToday)) items.push({ cls: '', ck: sToday ? String(sToday) : '', t: '벽 스쿼트 2분 × 4세트' + (sToday ? ' (' + (4 - sToday) + '세트 남음)' : ''),
+      act: '<button class="act" data-do="strength">▶ 시작</button>', d: ['세트 사이 2분 쉬기 · 숨은 계속 쉬기', '이번 주 ' + sDays + '/3회 · 혈압을 낮추는 효과가 큰 운동'] });
+    else if (sDays >= 3) items.push({ cls: 'done', ck: '✓', t: '이번 주 근력 3회 완료', d: ['잘하고 있어요'] });
+
+    // ── 이번 주 계획표 ──
+    const cells = DAYS.map((nm, i) => {
+      const d = shiftDate(mon, i), km = dayKm(d), st = strengthSets(d) > 0, past = i < dow, isToday = i === dow;
+      let main, sub, cls = '';
+      if (km > 0) { main = km.toFixed(1); sub = 'km'; cls = 'done'; }
+      else if (PLAN[i] === 'run' || PLAN[i] === 'long') { const k = planKmOf(i); main = past ? '–' : k ? String(k) : '쉼'; sub = past ? '못 뜀' : k ? (PLAN[i] === 'long' ? '긴 거리' : 'km') : ''; cls = past ? 'miss' : ''; }
+      else { main = st ? '💪' : past ? '–' : '💪'; sub = st ? '완료' : '근력'; cls = st ? 'done' : past ? 'miss' : ''; }
+      if (km > 0 && st) sub = 'km · 💪';
+      return '<div class="wd ' + cls + (isToday ? ' today' : '') + '"><span class="n">' + nm + '</span><b>' + main + '</b><span class="s">' + sub + '</span></div>';
+    }).join('');
+
+    // ── 체중 진행: 계획 대비 ──
+    let pace = '';
+    if (!p.done && g.start_date) {
+      const weeks = Math.max(0, daysBetween(g.start_date, today) / 7), expect = Number(g.start_kg) - p.rate * weeks, diff = p.now - expect;
+      pace = Math.abs(diff) < 0.3 ? '계획대로 가고 있어요' : diff < 0 ? '계획보다 ' + (-diff).toFixed(1) + 'kg 앞서요 👍' : '계획보다 ' + diff.toFixed(1) + 'kg 늦어요 · 야식·국물부터 줄여 보세요';
     }
-    // ② 근력 (주 3회, 하루 4세트)
-    if (sToday >= 4) items.push({ cls: 'done', ck: '✓', t: '버티기 ' + sToday + '세트 완료', d: '이번 주 ' + sDays + '/3회' });
-    else if (gate.level === 'stop') items.push({ cls: 'warn', ck: '!', t: '근력도 오늘은 쉬기', d: '혈압이 내려간 뒤에 하세요.' });
-    else if (sDays >= 3 && !sToday) items.push({ cls: 'done', ck: '✓', t: '이번 주 근력 3회 완료', d: '더 해도 좋지만 쉬어도 돼요.' });
-    else items.push({ cls: '', ck: sToday ? String(sToday) : '', t: '벽 스쿼트 버티기 ' + (sToday ? (4 - sToday) + '세트 남음' : '2분 × 4세트'), d: '이번 주 ' + sDays + '/3회 · 혈압 낮추는 효과가 큰 운동', act: '<button class="act" data-do="strength">▶ 시작</button>' });
+    const tomorrow = dow < 6 ? (PLAN[dow + 1] === 'str' ? '근력(벽 스쿼트)' + (planKmOf(dow + 1) ? '' : '') : (planKmOf(dow + 1) ? (PLAN[dow + 1] === 'long' ? '긴 거리 ' : '달리기 ') + planKmOf(dow + 1) + 'km' : '쉬기')) : '새 주 시작 · 달리기';
+
     $('coach').innerHTML = '<div class="coach">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px"><span>목표일 <b>' + esc(prettyDate(g.target_date)) + '</b></span><button id="g-edit" style="color:var(--teal);font-weight:700">목표 바꾸기 ›</button></div>' +
       '<div class="prog"><i style="width:' + (p.pct * 100).toFixed(0) + '%"></i></div>' +
       '<div class="ends"><span>시작 ' + Number(g.start_kg).toFixed(1) + 'kg</span><span>지금 <b style="color:var(--ink)">' + p.now.toFixed(1) + 'kg</b> · ' + (p.done ? '도착!' : p.left.toFixed(1) + 'kg 남음') + '</span><span>목표 ' + Number(g.target_kg).toFixed(1) + 'kg</span></div>' +
-      (p.done ? '<div class="tip"><b>🎉 목표 체중에 도달했어요!</b>지금 운동량을 유지하면서 체중이 다시 오르지 않게 지켜 보세요.</div>' :
-        '<div class="sub" style="margin:14px 0 0;font-weight:800;color:var(--ink);font-size:15px">오늘 할 일</div>' +
-        '<div class="todo">' + items.map((x) => '<div class="it ' + x.cls + '"><span class="ck">' + x.ck + '</span><span class="tx"><b>' + esc(x.t) + '</b><span>' + esc(x.d) + '</span></span>' + (x.act || '') + '</div>').join('') + '</div>' +
-        '<div class="wk"><div>이번 주 러닝 <b style="color:var(--ink)">' + doneKm.toFixed(1) + '</b> / ' + p.weekKm + 'km<div class="bar"><i style="width:' + Math.min(100, doneKm / p.weekKm * 100) + '%"></i></div></div>' +
-        '<div>이번 주 근력 <b style="color:var(--ink)">' + sDays + '</b> / 3회<div class="dots">' + [0, 1, 2].map((i) => '<i' + (i < sDays ? ' class="on"' : '') + '></i>').join('') + '</div></div></div>' +
-        (kt ? '<button class="sub" data-do="meal" style="display:block;margin:10px 0 0;color:var(--teal);font-weight:700;text-align:left">🍽 식사는 하루 ' + fmtN(kt) + 'kcal · 나트륨 2,000mg 이하 → 식사 탭에서 확인 ›</button>' : '') +
-        '<p class="sub" style="font-size:12px;margin-top:8px">한 주에 ' + p.rate.toFixed(1) + 'kg씩 빼는 계획: 러닝 주 ' + p.weekKm + 'km + 근력 주 3회 + 하루 ' + p.foodKcal + 'kcal 덜 먹기.' +
-          (p.tooFast ? ' 목표일까지는 조금 빨라서 안전한 속도(주 ' + p.rate.toFixed(1) + 'kg)로 계산했어요. 이 속도면 ' + esc(prettyDate(p.safeDate)) + ' 무렵 도착해요.' : '') + '</p>') +
-      (!p.cur ? '<div class="tip warn"><b>체중을 기록해 주세요</b>기록 탭에 체중을 적으면 진행률이 자동으로 바뀌어요.</div>' : '') +
-      '<p class="sub" style="font-size:11px">일반적인 추정치(1kg≈7,700kcal)예요. 혈압약을 드시니 운동량을 크게 바꿀 땐 의사와 상의하세요.</p></div>';
+      (pace ? '<div class="sub" style="margin:6px 0 0;text-align:center">' + esc(pace) + '</div>' : '') +
+      (p.done ? '<div class="tip"><b>🎉 목표 체중에 도달했어요!</b>지금 운동량을 유지하세요.</div>' :
+        '<div class="sub" style="margin:16px 0 0;font-weight:800;color:var(--ink);font-size:15px">오늘 할 일</div>' +
+        '<div class="todo">' + items.map((x) => '<div class="it ' + x.cls + '"><span class="ck">' + x.ck + '</span><span class="tx"><b>' + esc(x.t) + '</b>' + x.d.map((l) => '<span>' + esc(l) + '</span>').join('') + '</span>' + (x.act || '') + '</div>').join('') + '</div>' +
+        '<div class="sub" style="margin:14px 0 6px;font-weight:800;color:var(--ink);font-size:15px;display:flex;justify-content:space-between"><span>이번 주 계획</span><span style="font-weight:600;color:var(--mute);font-size:13px">러닝 ' + doneKm.toFixed(1) + '/' + p.weekKm + 'km · 근력 ' + sDays + '/3</span></div>' +
+        '<div class="week">' + cells + '</div>' +
+        '<div class="sub" style="margin:10px 0 0">내일: <b style="color:var(--ink)">' + esc(tomorrow) + '</b></div>') +
+      (!p.cur ? '<div class="tip warn"><b>체중을 기록해 주세요</b>기록 탭에 체중을 적으면 진행률이 바뀌어요.</div>' : '') +
+      '</div>';
   }
   $('coach').addEventListener('click', async (e) => {
     const d = e.target.closest('[data-do]');
@@ -2031,9 +2080,6 @@
     if (Object.keys(todayPain).length && onMed(today)) {
       return { level: 'caution', confirm: true, icon: '💊', title: '소염진통제를 먹은 날 통증이 있어요.', text: '약이 통증을 가려서 모르는 사이 부상이 커질 수 있어요. 오늘은 걷기로 바꾸세요.' };
     }
-    const drank = parseChecks((recOf(shiftDate(today, -1)) || {}).checks).includes('술') || parseChecks((recOf(today) || {}).checks).includes('술');
-    if (drank) return { level: 'ok', icon: '🍺', title: (parseChecks((recOf(today) || {}).checks).includes('술') ? '오늘 술을 마셨어요' : '어제 술을 마셨어요') + (bp ? ' (혈압 ' + bp.systolic + '/' + bp.diastolic + ')' : '') + '.', text: '몸이 마르기 쉬워요. 물을 챙기고 평소보다 천천히, 짧게 뛰세요.' };
-    if (parseChecks((recOf(today) || {}).checks).includes('흡연')) return { level: 'ok', icon: '🚬', title: '뛰기 전후 1시간은 담배를 참아 주세요.', text: '담배는 혈관을 조이고 맥박을 올려서, 뛸 때 심장 부담이 커져요.' + (bp ? ' 오늘 혈압 ' + bp.systolic + '/' + bp.diastolic + '.' : '') };
     if (!bp) return { level: 'ok', icon: '🩺', title: '오늘 혈압을 아직 안 쟀어요.', text: '뛰기 전에 재 두면 안전 안내를 받을 수 있어요.' };
     return { level: 'ok', icon: '✅', title: '좋아요, 오늘 혈압 ' + bp.systolic + '/' + bp.diastolic + '.', text: '몸이 괜찮다면 계획대로 뛰세요.' };
   }
@@ -2072,7 +2118,8 @@
 
   function renderRunGate() {
     const g = runGate();
-    $('run-gate').innerHTML = '<div class="gate ' + g.level + '"><span class="ic">' + g.icon + '</span><span><b>' + esc(g.title) + '</b>' + esc(g.text) + '</span></div>';
+    // 평소(문제없는 날)에는 안내 카드를 숨기고, 쉬거나 조심해야 할 때만 보여 줍니다
+    $('run-gate').innerHTML = g.level === 'ok' ? '' : '<div class="gate ' + g.level + '"><span class="ic">' + g.icon + '</span><span><b>' + esc(g.title) + '</b>' + esc(g.text) + '</span></div>';
     $('run-start').classList.toggle('locked', g.level === 'stop');
     const short = (n) => String(n).replace(/\s*\d+(\.\d+)?\s*km\s*$/i, '').trim() || n;
     $('run-quick').innerHTML = '<div class="qtitle">워치·직접 뛴 거리 기록</div>' +
@@ -2266,7 +2313,7 @@
     const mm = (x) => Math.floor(x / 60) + ':' + ('0' + (x % 60)).slice(-2);
     const timed = st.ex <= 1;
     let timer;
-    if (st.phase === 'idle') timer = '<div class="st-timer"><div class="ph">' + esc(ST_EX[st.ex][0]) + '</div><div class="t">' + (timed ? mm(st.hold) : '×' + st.sets) + '</div><div class="s">' + esc(ST_EX[st.ex][1]) + (timed ? ' · ' + mm(st.hold) + ' 버티기 → ' + mm(st.rest) + ' 쉬기 × ' + st.sets + '세트' : '') + '</div></div>';
+    if (st.phase === 'idle') timer = '<div class="st-timer"><div class="ph">' + esc(ST_EX[st.ex][0]) + '</div><div class="t">' + (timed ? mm(st.hold) : '×' + st.sets) + '</div><div class="s">' + (timed ? mm(st.hold) + ' 버티기 → ' + mm(st.rest) + ' 쉬기 × ' + st.sets + '세트' : esc(ST_EX[st.ex][1])) + '</div></div>';
     else timer = '<div class="st-timer"><div class="ph' + (st.phase === 'rest' ? ' rest' : '') + '">' + (st.phase === 'hold' ? '버티기 ' + (st.set + 1) + '/' + st.sets + ' · 숨 계속 쉬기!' : '쉬기 · 다음 ' + (st.set + 1) + '/' + st.sets + '세트') + '</div><div class="t">' + mm(Math.max(0, st.left)) + '</div><div class="s">' + esc(ST_EX[st.ex][0]) + '</div></div>';
     $('strength').innerHTML =
       '<div class="st-top"><span class="st-week">이번 주 <b>' + days + '</b> / 3회</span><span class="st-week">오늘 ' + today + '세트</span></div>' +
@@ -2278,7 +2325,7 @@
         ? (timed ? '<button class="go" id="st-go"' + (g.level === 'stop' ? ' disabled' : '') + '>▶ 타이머 시작</button>' : '') + '<button id="st-plus">＋ 1세트 기록</button>'
         : '<button id="st-skip">' + (st.phase === 'rest' ? '쉬기 건너뛰기' : '이 세트 끝') + '</button><button id="st-stop">그만하기</button>') + '</div>' +
       (today ? '<button id="st-minus" class="sub" style="color:var(--mute);text-decoration:underline">오늘 세트 하나 빼기</button>' : '') +
-      '<p class="sub" style="font-size:12px">버티는 동안 <b>숨을 참지 마세요.</b> ' + (g.level === 'stop' ? '<b style="color:var(--red)">오늘은 혈압이 높아 쉬세요.</b> ' : '혈압이 160/100 이상인 날은 쉬고, ') + '허리·무릎이 아프면 그 동작은 빼세요. 처음이라면 의사와 상의 후 시작하세요.</p>';
+      '<p class="sub" style="font-size:12px">숨 참지 않기 · 혈압 160/100 이상이면 쉬기' + (g.level === 'stop' ? ' · <b style="color:var(--red)">오늘은 쉬세요</b>' : '') + '</p>';
   }
   $('strength').addEventListener('click', (e) => {
     const t = e.target.closest('button'); if (!t) return;
